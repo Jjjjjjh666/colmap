@@ -110,3 +110,4 @@ float FeatureKeypoint::ComputeShear() const {
 }  //计算特征点的剪切，通过计算两个反正切函数值的差得到。
 
 }  // namespace colmap
+//整体上定义了一个名为FeatureKeypoint的类，用于维护图像中的特征点，并对特征点进行构造，缩放和各种属性的计算
