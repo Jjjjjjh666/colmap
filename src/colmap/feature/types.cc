@@ -76,7 +76,7 @@ FeatureKeypoint FeatureKeypoint::FromShapeParameters(const float x,
                          scale_y * std::cos(orientation + shear));
 } //根据给定的形状参数创建一个新的FeatureKeypoint对象
 
-void FeatureKeypoint::Rescale(const float scale) { Rescale(scale, scale); } //使用相同的尺度参数对x和y进行缩放
+void FeatureKeypoint::Rescale(const float scale) { Rescale(scale, scale); } //使用相同的尺度参数进行缩放
 
 void FeatureKeypoint::Rescale(const float scale_x, const float scale_y) {
   THROW_CHECK_GT(scale_x, 0);
@@ -87,26 +87,26 @@ void FeatureKeypoint::Rescale(const float scale_x, const float scale_y) {
   a12 *= scale_y;
   a21 *= scale_x;
   a22 *= scale_y;
-}
+}  //接收两个尺度参数对特征点的坐标和变换矩阵的元素进行缩放
 
 float FeatureKeypoint::ComputeScale() const {
   return (ComputeScaleX() + ComputeScaleY()) / 2.0f;
-}
+}  //计算特征点的平均尺度
 
 float FeatureKeypoint::ComputeScaleX() const {
   return std::sqrt(a11 * a11 + a21 * a21);
-}
+}  //计算特征点在x方向上的尺度，通过计算变换矩阵中对应元素平方和的平方根得到
 
 float FeatureKeypoint::ComputeScaleY() const {
   return std::sqrt(a12 * a12 + a22 * a22);
-}
+}  //同上
 
 float FeatureKeypoint::ComputeOrientation() const {
   return std::atan2(a21, a11);
-}
+}  //计算特征点的方向，通过反正切函数计算变换矩阵中两个元素的比值得到
 
 float FeatureKeypoint::ComputeShear() const {
   return std::atan2(-a12, a22) - ComputeOrientation();
-}
+}  //计算特征点的剪切，通过计算两个反正切函数值的差得到。
 
 }  // namespace colmap
