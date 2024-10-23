@@ -33,18 +33,18 @@
 
 namespace colmap {
 
-FeatureKeypoint::FeatureKeypoint() : FeatureKeypoint(0, 0) {}
+FeatureKeypoint::FeatureKeypoint() : FeatureKeypoint(0, 0) {} //默认构造函数，将特征点初始坐标设置为（0,0）
 
 FeatureKeypoint::FeatureKeypoint(const float x, const float y)
-    : FeatureKeypoint(x, y, 1, 0, 0, 1) {}
+    : FeatureKeypoint(x, y, 1, 0, 0, 1) {}  //接收表示特征点的坐标（x，y），同时将尺度设置为1，方向设置为0
 
 FeatureKeypoint::FeatureKeypoint(const float x_,
                                  const float y_,
                                  const float scale,
                                  const float orientation)
     : x(x_), y(y_) {
-  THROW_CHECK_GE(scale, 0.0);
-  const float scale_cos_orientation = scale * std::cos(orientation);
+  THROW_CHECK_GE(scale, 0.0);  //检查尺度是否大于0
+  const float scale_cos_orientation = scale * std::cos(orientation);  //根据尺度和方向计算矩阵中的元素
   const float scale_sin_orientation = scale * std::sin(orientation);
   a11 = scale_cos_orientation;
   a12 = -scale_sin_orientation;
@@ -58,7 +58,7 @@ FeatureKeypoint::FeatureKeypoint(const float x_,
                                  const float a12_,
                                  const float a21_,
                                  const float a22_)
-    : x(x_), y(y_), a11(a11_), a12(a12_), a21(a21_), a22(a22_) {}
+    : x(x_), y(y_), a11(a11_), a12(a12_), a21(a21_), a22(a22_) {}  //直接初始化成员变量
 
 FeatureKeypoint FeatureKeypoint::FromShapeParameters(const float x,
                                                      const float y,
@@ -74,9 +74,9 @@ FeatureKeypoint FeatureKeypoint::FromShapeParameters(const float x,
                          -scale_y * std::sin(orientation + shear),
                          scale_x * std::sin(orientation),
                          scale_y * std::cos(orientation + shear));
-}
+} //根据给定的形状参数创建一个新的FeatureKeypoint对象
 
-void FeatureKeypoint::Rescale(const float scale) { Rescale(scale, scale); }
+void FeatureKeypoint::Rescale(const float scale) { Rescale(scale, scale); } //使用相同的尺度参数对x和y进行缩放
 
 void FeatureKeypoint::Rescale(const float scale_x, const float scale_y) {
   THROW_CHECK_GT(scale_x, 0);
