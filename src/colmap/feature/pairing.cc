@@ -45,28 +45,28 @@ namespace colmap {
 namespace {
 
 std::vector<std::pair<image_t, image_t>> ReadImagePairsText(
-    const std::string& path,
+    const std::string& path,  //读取文本的路径
     const std::unordered_map<std::string, image_t>& image_name_to_image_id) {
   std::ifstream file(path);
-  THROW_CHECK_FILE_OPEN(file, path);
+  THROW_CHECK_FILE_OPEN(file, path);  //尝试打开文件并检查是否打开成功
 
-  std::string line;
-  std::vector<std::pair<image_t, image_t>> image_pairs;
-  std::unordered_set<image_pair_t> image_pairs_set;
+  std::string line;  //存储从文件中读取的每一行内容
+  std::vector<std::pair<image_t, image_t>> image_pairs;  //存储有效的图像对
+  std::unordered_set<image_pair_t> image_pairs_set;  //跟踪已处理过的图像对，避免重复添加相同的图像对
   while (std::getline(file, line)) {
-    StringTrim(&line);
+    StringTrim(&line);  //除去字符串两段的空白字符或不需要的字符等
 
     if (line.empty() || line[0] == '#') {
       continue;
     }
 
-    std::stringstream line_stream(line);
+    std::stringstream line_stream(line);   //创建一个std::stringstream对象line_stream，将当前行line的内容放入其中
 
     std::string image_name1;
     std::string image_name2;
 
-    std::getline(line_stream, image_name1, ' ');
-    StringTrim(&image_name1);
+    std::getline(line_stream, image_name1, ' ');  //声明两个string变量并通过getline以空格为分隔符从linestream中提取
+    StringTrim(&image_name1);                     //分别代表两个图像的名称，并对他们进行stringtrim处理 
     std::getline(line_stream, image_name2, ' ');
     StringTrim(&image_name2);
 
@@ -78,12 +78,15 @@ std::vector<std::pair<image_t, image_t>> ReadImagePairsText(
       LOG(ERROR) << "Image " << image_name2 << " does not exist.";
       continue;
     }
-
+    //检查从当前行解析出的两个图像名称image_name1和image_name2是否在image_name_to_image_id映射中存在
+    //若不存在，则输出错误信息，跳出当前循环，不处理该图像
+    //若两个映射都存在，则从映射中获取各自对应的image_id
     const image_t image_id1 = image_name_to_image_id.at(image_name1);
     const image_t image_id2 = image_name_to_image_id.at(image_name2);
     const image_pair_t image_pair =
-        Database::ImagePairToPairId(image_id1, image_id2);
-    const bool image_pair_exists = image_pairs_set.insert(image_pair).second;
+        Database::ImagePairToPairId(image_id1, image_id2);  //将两组图像id生成一个唯一的图像对
+    const bool image_pair_exists = image_pairs_set.insert(image_pair).second;  //将生成的图像对尝试插入到image_pairs_set中，若插入成功
+    //若插入成功，即先前没有处理过，则将其添加到image_pairs向量中                                                                          
     if (image_pair_exists) {
       image_pairs.emplace_back(image_id1, image_id2);
     }
@@ -113,6 +116,7 @@ bool SequentialMatchingOptions::Check() const {
   CHECK_OPTION_GT(loop_detection_num_checks, 0);
   return true;
 }
+//以上三个函数均是对各自对象的参数所进行的有效性检查
 
 VocabTreeMatchingOptions SequentialMatchingOptions::VocabTreeOptions() const {
   VocabTreeMatchingOptions options;
