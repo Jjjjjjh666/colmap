@@ -129,6 +129,8 @@ VocabTreeMatchingOptions SequentialMatchingOptions::VocabTreeOptions() const {
   options.vocab_tree_path = vocab_tree_path;
   return options;
 }
+//从SequentialMatchingOptions对象中提取一部分特定的参数值，创建一个VocabTreeMatchingOptions对象
+//并将提取的参数值赋给新创建对象的相应成员变量，最后返回这个新的VocabTreeMatchingOptions对象（类似于深拷贝）
 
 bool SpatialMatchingOptions::Check() const {
   CHECK_OPTION_GT(max_num_neighbors, 0);
@@ -148,10 +150,11 @@ bool ImagePairsMatchingOptions::Check() const {
 }
 
 bool FeaturePairsMatchingOptions::Check() const { return true; }
+//参数检查
 
 std::vector<std::pair<image_t, image_t>> PairGenerator::AllPairs() {
   std::vector<std::pair<image_t, image_t>> image_pairs;
-  while (!this->HasFinished()) {
+  while (!this->HasFinished()) {   //检查生成过程是否完成
     std::vector<std::pair<image_t, image_t>> image_pairs_block = this->Next();
     image_pairs.insert(image_pairs.end(),
                        std::make_move_iterator(image_pairs_block.begin()),
