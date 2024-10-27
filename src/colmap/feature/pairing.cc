@@ -155,26 +155,29 @@ bool FeaturePairsMatchingOptions::Check() const { return true; }
 std::vector<std::pair<image_t, image_t>> PairGenerator::AllPairs() {
   std::vector<std::pair<image_t, image_t>> image_pairs;
   while (!this->HasFinished()) {   //检查生成过程是否完成
-    std::vector<std::pair<image_t, image_t>> image_pairs_block = this->Next();
+    std::vector<std::pair<image_t, image_t>> image_pairs_block = this->Next();  //调用this->NEXT生成一组图像对块
     image_pairs.insert(image_pairs.end(),
                        std::make_move_iterator(image_pairs_block.begin()),
                        std::make_move_iterator(image_pairs_block.end()));
+      //使用insert函数将image_pairs_block中的图像对移动到image_pairs向量中。
+      //优化手段，move_iterator：将普通迭代器转化为一个移动迭代器，将元素从一个容器转移到另一个容器中
+      //起到移动元素的作用，而非简单的拷贝
   }
   return image_pairs;
 }
 
 ExhaustivePairGenerator::ExhaustivePairGenerator(
     const ExhaustiveMatchingOptions& options,
-    const std::shared_ptr<FeatureMatcherCache>& cache)
+    const std::shared_ptr<FeatureMatcherCache>& cache)  //shared_ptr是c++中的一种智能指针类型，用于管理动态分配对象的生命周期
     : options_(options),
-      image_ids_(THROW_CHECK_NOTNULL(cache)->GetImageIds()),
-      block_size_(static_cast<size_t>(options_.block_size)),
+      image_ids_(THROW_CHECK_NOTNULL(cache)->GetImageIds()),  //检查指针非空，获取图像标识
+      block_size_(static_cast<size_t>(options_.block_size)),  //指定块大小
       num_blocks_(static_cast<size_t>(
-          std::ceil(static_cast<double>(image_ids_.size()) / block_size_))) {
-  THROW_CHECK(options.Check());
+          std::ceil(static_cast<double>(image_ids_.size()) / block_size_))) {  //通过计算标识符数量除以块大小并向上取整获得块的数量
+  THROW_CHECK(options.Check());  //检查匹配选项是否有效
   LOG(INFO) << "Generating exhaustive image pairs...";
-  const size_t num_pairs_per_block = block_size_ * (block_size_ - 1) / 2;
-  image_pairs_.reserve(num_pairs_per_block);
+  const size_t num_pairs_per_block = block_size_ * (block_size_ - 1) / 2;  //计算每个块中的图像对数量
+  image_pairs_.reserve(num_pairs_per_block);   //使用reserve函数为image_pairs_向量预留足够的空间
 }
 
 ExhaustivePairGenerator::ExhaustivePairGenerator(
@@ -184,32 +187,40 @@ ExhaustivePairGenerator::ExhaustivePairGenerator(
           options,
           std::make_shared<FeatureMatcherCache>(
               options.CacheSize(), THROW_CHECK_NOTNULL(database))) {}
+//调用第一个构造函数来初始化对象，在调用第一个构造函数时，创建了一个FeatureMatcherCache对象
+//使用options.CacheSize()设置缓存大小，并传入database指针（同样经过非空检查）。
 
 void ExhaustivePairGenerator::Reset() {
   start_idx1_ = 0;
   start_idx2_ = 0;
 }
+//重置函数
 
 bool ExhaustivePairGenerator::HasFinished() const {
   return start_idx1_ >= image_ids_.size();
 }
+//判断图像对的生成过程是否完成
 
 std::vector<std::pair<image_t, image_t>> ExhaustivePairGenerator::Next() {
   image_pairs_.clear();
   if (HasFinished()) {
     return image_pairs_;
   }
-
+//先清空image_pairs_向量，然后判断生成过程是否结束，若结束，则返回空的image_pairs_向量
   const size_t end_idx1 =
       std::min(image_ids_.size(), start_idx1_ + block_size_) - 1;
   const size_t end_idx2 =
       std::min(image_ids_.size(), start_idx2_ + block_size_) - 1;
+//计算当前块的结束索引end_idx1和end_idx2。
+//这里通过取image_ids_.size()和当前索引加上block_size_的较小值再减1来确定，确保不会超出图像标识符向量的范围
 
   LOG(INFO) << StringPrintf("Matching block [%d/%d, %d/%d]",
                             start_idx1_ / block_size_ + 1,
                             num_blocks_,
                             start_idx2_ / block_size_ + 1,
                             num_blocks_);
+//输出显示当前匹配的块在整个块序列中的位置
+//其中start_idx1_ / block_size_ + 1和start_idx2_ / block_size_ + 1分别表示当前块在start_idx1_和start_idx2_方向上的索引（从1开始计数）
 
   for (size_t idx1 = start_idx1_; idx1 <= end_idx1; ++idx1) {
     for (size_t idx2 = start_idx2_; idx2 <= end_idx2; ++idx2) {
@@ -221,45 +232,50 @@ std::vector<std::pair<image_t, image_t>> ExhaustivePairGenerator::Next() {
       }
     }
   }
+//通过嵌套循环用于生成当前块的图像对，同时通过条件判断避免生成重复的图像对
   start_idx2_ += block_size_;
   if (start_idx2_ >= image_ids_.size()) {
     start_idx2_ = 0;
     start_idx1_ += block_size_;
   }
+//更新index2的值，若index2已经超过了idsize，说明当前index1下的所有情况已经得到处理，index2置零，index1+block_size
   return image_pairs_;
 }
 
-VocabTreePairGenerator::VocabTreePairGenerator(
+
+
+VocabTreePairGenerator::VocabTreePairGenerator(   //使用字典树生成图像对（Trie）
     const VocabTreeMatchingOptions& options,
     const std::shared_ptr<FeatureMatcherCache>& cache,
     const std::vector<image_t>& query_image_ids)
-    : options_(options),
+    : options_(options),  
       cache_(THROW_CHECK_NOTNULL(cache)),
-      thread_pool(options_.num_threads),
+      thread_pool(options_.num_threads),  //初始化线程池
       queue(options_.num_threads) {
-  THROW_CHECK(options.Check());
+  THROW_CHECK(options.Check());  //检查匹配是否有效
   LOG(INFO) << "Generating image pairs with vocabulary tree...";
 
   // Read the pre-trained vocabulary tree from disk.
-  visual_index_.Read(options_.vocab_tree_path);
+  visual_index_.Read(options_.vocab_tree_path);  //读取字典树
 
-  const std::vector<image_t> all_image_ids = cache_->GetImageIds();
+  const std::vector<image_t> all_image_ids = cache_->GetImageIds();  //获取所有图像标识符
   if (query_image_ids.size() > 0) {
-    query_image_ids_ = query_image_ids;
+    query_image_ids_ = query_image_ids;  //若查询图像标识符的向量大小大于0，则将query_image_ids_设置为传入的query_image_ids，表示使用传入的查询图像标识符。
   } else if (options_.match_list_path == "") {
     query_image_ids_ = cache_->GetImageIds();
+    //如果options_.match_list_path为空字符串，则将query_image_ids_设置为all_image_ids，即使用所有图像作为查询图像
   } else {
     // Map image names to image identifiers.
-    std::unordered_map<std::string, image_t> image_name_to_image_id;
-    image_name_to_image_id.reserve(all_image_ids.size());
+    std::unordered_map<std::string, image_t> image_name_to_image_id; //将图像名称映射到图像标识符
+    image_name_to_image_id.reserve(all_image_ids.size());  //空间预留
     for (const auto image_id : all_image_ids) {
       const auto& image = cache_->GetImage(image_id);
       image_name_to_image_id.emplace(image.Name(), image_id);
-    }
+    }  //将每个图像名称和标识符添加到映射中
 
     // Read the match list path.
     std::ifstream file(options_.match_list_path);
-    THROW_CHECK_FILE_OPEN(file, options_.match_list_path);
+    THROW_CHECK_FILE_OPEN(file, options_.match_list_path);  //打开文件并检查是否打开成功
     std::string line;
     while (std::getline(file, line)) {
       StringTrim(&line);
@@ -267,13 +283,15 @@ VocabTreePairGenerator::VocabTreePairGenerator(
       if (line.empty() || line[0] == '#') {
         continue;
       }
-
+//逐行读取内容，去掉空行和注释行
       if (image_name_to_image_id.count(line) == 0) {
         LOG(ERROR) << "Image " << line << " does not exist.";
       } else {
         query_image_ids_.push_back(image_name_to_image_id.at(line));
       }
     }
+    //对于每行内容，如果在image_name_to_image_id映射中存在对应的图像名称
+    //则将其对应的标识符添加到query_image_ids_向量中，不存在则输出错误信息
   }
 
   IndexImages(all_image_ids);
@@ -283,6 +301,7 @@ VocabTreePairGenerator::VocabTreePairGenerator(
   query_options_.num_checks = options_.num_checks;
   query_options_.num_images_after_verification =
       options_.num_images_after_verification;
+//将query_options_的各个成员变量设置为options_中相应的参数值
 }
 
 VocabTreePairGenerator::VocabTreePairGenerator(
