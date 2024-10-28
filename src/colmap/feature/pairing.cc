@@ -304,6 +304,8 @@ VocabTreePairGenerator::VocabTreePairGenerator(   //使用字典树生成图像�
 //将query_options_的各个成员变量设置为options_中相应的参数值
 }
 
+//trie树：
+
 VocabTreePairGenerator::VocabTreePairGenerator(
     const VocabTreeMatchingOptions& options,
     const std::shared_ptr<Database>& database,
@@ -318,26 +320,30 @@ void VocabTreePairGenerator::Reset() {
   query_idx_ = 0;
   result_idx_ = 0;
 }
+//重置内部索引
 
 bool VocabTreePairGenerator::HasFinished() const {
   return result_idx_ >= query_image_ids_.size();
 }
+//检查处理过程是否完成
 
 std::vector<std::pair<image_t, image_t>> VocabTreePairGenerator::Next() {
   image_pairs_.clear();
   if (HasFinished()) {
     return image_pairs_;
   }
-  if (query_idx_ == 0) {
+  if (query_idx_ == 0) {  //处理刚开始
     // Initially, make all retrieval threads busy and continue with the
     // matching.
     const size_t init_num_tasks =
         std::min(query_image_ids_.size(), 2 * thread_pool.NumThreads());
+      //计算初始化任务数量：查询图像数量和两倍线程池数量中的较小者
     for (; query_idx_ < init_num_tasks; ++query_idx_) {
       thread_pool.AddTask(
           &VocabTreePairGenerator::Query, this, query_image_ids_[query_idx_]);
-    }
+    }  //通过循环将任务添加到线程池中
   }
+    //启动多个任务，利用多线程处理
 
   LOG(INFO) << StringPrintf(
       "Matching image [%d/%d]", result_idx_ + 1, query_image_ids_.size());
@@ -347,64 +353,80 @@ std::vector<std::pair<image_t, image_t>> VocabTreePairGenerator::Next() {
     thread_pool.AddTask(
         &VocabTreePairGenerator::Query, this, query_image_ids_[query_idx_++]);
   }
+    //若还有未查询的图像，则添加新的查询任务
 
   // Pop the next results from the retrieval queue.
   auto retrieval = queue.Pop();
   THROW_CHECK(retrieval.IsValid());
+//获取检索结果并检查其是否有效
 
   const auto& image_id = retrieval.Data().image_id;
   const auto& image_scores = retrieval.Data().image_scores;
+//获取图像标识符和图像匹配分数信息
 
   // Compose the image pairs from the scores.
   image_pairs_.reserve(image_scores.size());
   for (const auto image_score : image_scores) {
-    image_pairs_.emplace_back(image_id, image_score.image_id);
+    image_pairs_.emplace_back(image_id, image_score.image_id);  //为每个分数对应的图像创建一个图像对并将其添加到image_pairs_中
   }
-  ++result_idx_;
+  ++result_idx_;  //更新结果索引
   return image_pairs_;
 }
 
 void VocabTreePairGenerator::IndexImages(
-    const std::vector<image_t>& image_ids) {
-  retrieval::VisualIndex<>::IndexOptions index_options;
-  index_options.num_threads = options_.num_threads;
+    const std::vector<image_t>& image_ids) {  //对给定的图像标识符向量中的图像进行索引
+  retrieval::VisualIndex<>::IndexOptions index_options;  //存储索引的相关选项
+  index_options.num_threads = options_.num_threads;  
   index_options.num_checks = options_.num_checks;
+//获取线程数和检查数并赋值给相应成员
 
   for (size_t i = 0; i < image_ids.size(); ++i) {
     Timer timer;
     timer.Start();
     LOG(INFO) << StringPrintf(
         "Indexing image [%d/%d]", i + 1, image_ids.size());
+    //对于每个图像，创建一个Timer对象并启动它，用于记录索引该图像所花费的时间。
+    //同时输出一条日志信息，显示正在索引的图像的进度（当前索引的图像序号和总图像数）。
     auto keypoints = *cache_->GetKeypoints(image_ids[i]);
     auto descriptors = *cache_->GetDescriptors(image_ids[i]);
+    //根据图像标识通过cache_获取当前图像的关键点和描述符
+      
     if (options_.max_num_features > 0 &&
         descriptors.rows() > options_.max_num_features) {
       ExtractTopScaleFeatures(
           &keypoints, &descriptors, options_.max_num_features);
     }
+    //检查options_中设置的最大特征数量（max_num_features）是否大于 0，并且当前图像的描述符行数是否超过这个最大数量。
+    //如果是，则调用ExtractTopScaleFeatures函数来提取前max个最重要的特征
     visual_index_.Add(index_options, image_ids[i], keypoints, descriptors);
+    //将图像添加到视觉索引中
     LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
   }
 
   // Compute the TF-IDF weights, etc.
   visual_index_.Prepare();
+    //完成索引的准备工作，用于后续的图像检索
 }
+//函数整体功能实现：
+//首先设置索引操作的相关选项，包括线程数和检查数
+//再来遍历索引的图像集合，从缓存中获取图像的关键点和描述符并提取重要特征，再将图像添加到视觉索引中
+//最后完成索引信息的准备工作
 
 void VocabTreePairGenerator::Query(const image_t image_id) {
   auto keypoints = *cache_->GetKeypoints(image_id);
-  auto descriptors = *cache_->GetDescriptors(image_id);
+  auto descriptors = *cache_->GetDescriptors(image_id);  //获取图像关键点和描述符
   if (options_.max_num_features > 0 &&
       descriptors.rows() > options_.max_num_features) {
     ExtractTopScaleFeatures(
         &keypoints, &descriptors, options_.max_num_features);
-  }
+  }  //提取重要特征
 
-  Retrieval retrieval;
+  Retrieval retrieval;  //储存查询结果相关信息
   retrieval.image_id = image_id;
   visual_index_.Query(
-      query_options_, keypoints, descriptors, &retrieval.image_scores);
+      query_options_, keypoints, descriptors, &retrieval.image_scores);  //查询
 
-  THROW_CHECK(queue.Push(std::move(retrieval)));
+  THROW_CHECK(queue.Push(std::move(retrieval)));  //入队
 }
 
 SequentialPairGenerator::SequentialPairGenerator(
