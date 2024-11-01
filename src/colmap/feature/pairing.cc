@@ -428,22 +428,21 @@ void VocabTreePairGenerator::Query(const image_t image_id) {
 
   THROW_CHECK(queue.Push(std::move(retrieval)));  //入队
 }
-
 SequentialPairGenerator::SequentialPairGenerator(
-    const SequentialMatchingOptions& options,
-    const std::shared_ptr<FeatureMatcherCache>& cache)
+    const SequentialMatchingOptions& options, //传入匹配选项
+    const std::shared_ptr<FeatureMatcherCache>& cache)  //存储特征匹配的缓存信息
     : options_(options), cache_(THROW_CHECK_NOTNULL(cache)) {
-  THROW_CHECK(options.Check());
+  THROW_CHECK(options.Check());   //检查传入的匹配选项是否有效
   LOG(INFO) << "Generating sequential image pairs...";
   image_ids_ = GetOrderedImageIds();
-  image_pairs_.reserve(options_.overlap);
+  image_pairs_.reserve(options_.overlap);   //获取图像ID并预留空间
 
   if (options_.loop_detection) {
     std::vector<image_t> query_image_ids;
     for (size_t i = 0; i < image_ids_.size();
          i += options_.loop_detection_period) {
       query_image_ids.push_back(image_ids_[i]);
-    }
+    }//按照loop_detection_period指定的步长从image_ids_中选取图像 ID，并将其添加到query_image_ids向量中
     vocab_tree_pair_generator_ = std::make_unique<VocabTreePairGenerator>(
         options_.VocabTreeOptions(), cache_, query_image_ids);
   }
@@ -463,17 +462,19 @@ void SequentialPairGenerator::Reset() {
     vocab_tree_pair_generator_->Reset();
   }
 }
+//重置函数
 
 bool SequentialPairGenerator::HasFinished() const {
   return image_idx_ >= image_ids_.size() &&
          (vocab_tree_pair_generator_ ? vocab_tree_pair_generator_->HasFinished()
                                      : true);
 }
+//检查函数操作是否已全部完成
 
 std::vector<std::pair<image_t, image_t>> SequentialPairGenerator::Next() {
-  image_pairs_.clear();
-  if (image_idx_ >= image_ids_.size()) {
-    if (vocab_tree_pair_generator_) {
+  image_pairs_.clear();   //清空之前存储的图像信息，为生成新图像做准备
+  if (image_idx_ >= image_ids_.size()) {   //检查是否完成所有的基本图像生成
+    if (vocab_tree_pair_generator_) {   //若存在词汇树图像对生成器，则调用其next函数并返回结果
       return vocab_tree_pair_generator_->Next();
     }
     return image_pairs_;
@@ -481,17 +482,23 @@ std::vector<std::pair<image_t, image_t>> SequentialPairGenerator::Next() {
   LOG(INFO) << StringPrintf(
       "Matching image [%d/%d]", image_idx_ + 1, image_ids_.size());
 
-  const auto image_id1 = image_ids_.at(image_idx_);
+  const auto image_id1 = image_ids_.at(image_idx_);  //获取当前图像ID
+  //用于生成当前图像和后续图像的图像对
   for (int i = 0; i < options_.overlap; ++i) {
     if (options_.quadratic_overlap) {
+        //通过image_idx_ + (1ull << i)计算下一个图像索引（1ull << i实现了以 2 为底数的指数增长）
       const size_t image_idx_2_quadratic = image_idx_ + (1ull << i);
+      //如果该索引在image_ids_范围内，则将由image_id1和新获取的图像 ID 组成的图像对添加到image_pairs_容器中
       if (image_idx_2_quadratic < image_ids_.size()) {
         image_pairs_.emplace_back(image_id1,
                                   image_ids_.at(image_idx_2_quadratic));
       } else {
-        break;
+        break;  //否则若索引越界，则跳出循环
       }
-    } else {
+    }
+    //如果options_.quadratic_overlap为false，则通过image_idx_ + i + 1计算下一个图像索引，
+    //并在索引合法的情况下将相应的图像对添加到image_pairs_容器中。
+    else {
       const size_t image_idx_2 = image_idx_ + i + 1;
       if (image_idx_2 < image_ids_.size()) {
         image_pairs_.emplace_back(image_id1, image_ids_.at(image_idx_2));
@@ -500,30 +507,31 @@ std::vector<std::pair<image_t, image_t>> SequentialPairGenerator::Next() {
       }
     }
   }
+  //更新图像对索引并返回图像对
   ++image_idx_;
   return image_pairs_;
 }
 
-std::vector<image_t> SequentialPairGenerator::GetOrderedImageIds() const {
-  const std::vector<image_t> image_ids = cache_->GetImageIds();
+std::vector<image_t> SequentialPairGenerator::GetOrderedImageIds() const {  //获取有序的图像ID
+  const std::vector<image_t> image_ids = cache_->GetImageIds();  //获取所有图像ID
 
   std::vector<Image> ordered_images;
-  ordered_images.reserve(image_ids.size());
+  ordered_images.reserve(image_ids.size());  //创建对象并预留空间
   for (const auto image_id : image_ids) {
     ordered_images.push_back(cache_->GetImage(image_id));
-  }
+  }  //通过循环遍历每个图像ID并将其对应的图像添加到容器中
 
   std::sort(ordered_images.begin(),
             ordered_images.end(),
             [](const Image& image1, const Image& image2) {
               return image1.Name() < image2.Name();
-            });
+            });  //按照图像名称的字典序对图像对象进行排序
 
   std::vector<image_t> ordered_image_ids;
-  ordered_image_ids.reserve(image_ids.size());
+  ordered_image_ids.reserve(image_ids.size());  //创建储存有序图像ID的容器并预留空间
   for (const auto& image : ordered_images) {
     ordered_image_ids.push_back(image.ImageId());
-  }
+  }   //提取排序后图像的ID并将其添加到容器中
 
   return ordered_image_ids;
 }
@@ -533,47 +541,50 @@ SpatialPairGenerator::SpatialPairGenerator(
     const std::shared_ptr<FeatureMatcherCache>& cache)
     : options_(options), image_ids_(THROW_CHECK_NOTNULL(cache)->GetImageIds()) {
   LOG(INFO) << "Generating spatial image pairs...";
-  THROW_CHECK(options.Check());
+  THROW_CHECK(options.Check());  //检查空间匹配选项是否有效
 
   Timer timer;
-  timer.Start();
+  timer.Start();  //创建一个Timer对象timer并启动它，用于计时索引图像过程
   LOG(INFO) << "Indexing images...";
 
   Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> position_matrix =
-      ReadPositionPriorData(*cache);
-  const size_t num_positions = position_idxs_.size();
+      ReadPositionPriorData(*cache);  //从缓存中读取图像位置的先验数据
+  const size_t num_positions = position_idxs_.size();   //获取位置索引的大小
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
-  if (num_positions == 0) {
+  if (num_positions == 0) {  //若没有图像具有位置数据
     LOG(INFO) << "=> No images with location data.";
     return;
   }
 
   timer.Restart();
   LOG(INFO) << "Building search index...";
-
+  //使用position_matrix的数据创建一个flann::Matrix<float>类型的positions对象
+  //FLANN库
   flann::Matrix<float> positions(
       position_matrix.data(), num_positions, position_matrix.cols());
 
-  flann::LinearIndexParams index_params;
-  flann::LinearIndex<flann::L2<float>> search_index(index_params);
-  search_index.buildIndex(positions);
+  flann::LinearIndexParams index_params;  //创建索引参数
+  flann::LinearIndex<flann::L2<float>> search_index(index_params);   //创建搜索参数对象
+  search_index.buildIndex(positions);  
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
 
   timer.Restart();
   LOG(INFO) << "Searching for nearest neighbors...";
-
-  knn_ = std::min<int>(options_.max_num_neighbors + 1, num_positions);
+  //搜索最近邻部分
+  knn_ = std::min<int>(options_.max_num_neighbors + 1, num_positions);  //根据options_.max_num_neighbors和num_positions确定要搜索的最近邻数量knn_
   image_pairs_.reserve(knn_);
 
-  index_matrix_.resize(num_positions, knn_);
-  flann::Matrix<size_t> indices(index_matrix_.data(), num_positions, knn_);
+  index_matrix_.resize(num_positions, knn_);//调整index_matrix_的大小为num_positions行和knn_列
+  flann::Matrix<size_t> indices(index_matrix_.data(), num_positions, knn_); //使用其数据创建flann::Matrix<size_t>类型的indices对象，用于存储最近邻的索引
 
-  distance_matrix_.resize(num_positions, knn_);
-  flann::Matrix<float> distances(distance_matrix_.data(), num_positions, knn_);
+  distance_matrix_.resize(num_positions, knn_);  //储存最近邻的索引
+  flann::Matrix<float> distances(distance_matrix_.data(), num_positions, knn_);  //存储最近邻的距离
 
   flann::SearchParams search_params(flann::FLANN_CHECKS_AUTOTUNED);
+  //？？？根据options_.num_threads和线程池最大线程数的关系设置search_params的cores属性
+  // （如果options_.num_threads是最大线程数，则使用硬件并发线程数；否则使用options_.num_threads，如果计算出的线程数小于等于 0，则设置为 1）。
   if (options_.num_threads == ThreadPool::kMaxNumThreads) {
     search_params.cores = std::thread::hardware_concurrency();
   } else {
@@ -582,7 +593,7 @@ SpatialPairGenerator::SpatialPairGenerator(
   if (search_params.cores <= 0) {
     search_params.cores = 1;
   }
-
+  //调用knn算法进行最近邻搜索
   search_index.knnSearch(positions, indices, distances, knn_, search_params);
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
@@ -611,16 +622,16 @@ std::vector<std::pair<image_t, image_t>> SpatialPairGenerator::Next() {
   LOG(INFO) << StringPrintf(
       "Matching image [%d/%d]", current_idx_ + 1, position_idxs_.size());
   const float max_distance =
-      static_cast<float>(options_.max_distance * options_.max_distance);
-  for (int j = 0; j < knn_; ++j) {
+      static_cast<float>(options_.max_distance * options_.max_distance);//计算最大阈值距离的平方
+  for (int j = 0; j < knn_; ++j) {  //遍历当前图像索引的knn个最近邻
     // Check if query equals result.
     if (index_matrix_(current_idx_, j) == current_idx_) {
-      continue;
+      continue;    //若当前最近邻索引与当前图像索引相同，则跳过本次循环
     }
 
     // Since the nearest neighbors are sorted by distance, we can break.
     if (distance_matrix_(current_idx_, j) > max_distance) {
-      break;
+      break;   //若当前索引下的图像距离大于最大距离，便可以直接break，因为最近邻是按照距离排序的
     }
 
     const image_t image_id = image_ids_.at(position_idxs_[current_idx_]);
@@ -631,9 +642,10 @@ std::vector<std::pair<image_t, image_t>> SpatialPairGenerator::Next() {
   ++current_idx_;
   return image_pairs_;
 }
+//该函数主要用于生成一组空间图像对，将符合条件的最近邻添加到image_pairs_当中
 
 Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor>
-SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {
+SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {   //从cache中读取图像位置的先验数据
   GPSTransform gps_transform;
   std::vector<Eigen::Vector3d> ells(1);
 
@@ -641,10 +653,10 @@ SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {
   position_idxs_.clear();
   position_idxs_.reserve(image_ids_.size());
   Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> position_matrix(
-      image_ids_.size(), 3);
+      image_ids_.size(), 3);  //用于存储图像位置信息的矩阵，每行存储一个图像的三维位置
 
   for (size_t i = 0; i < image_ids_.size(); ++i) {
-    const PosePrior* pose_prior = cache.GetPosePriorOrNull(image_ids_[i]);
+    const PosePrior* pose_prior = cache.GetPosePriorOrNull(image_ids_[i]); //获取该图像ID下的位置先验指针
     if (pose_prior == nullptr) {
       continue;
     }
@@ -652,23 +664,26 @@ SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {
     if ((position_prior(0) == 0 && position_prior(1) == 0 &&
          options_.ignore_z) ||
         (position_prior(0) == 0 && position_prior(1) == 0 &&
-         position_prior(2) == 0 && !options_.ignore_z)) {
+         position_prior(2) == 0 && !options_.ignore_z)) {  //若在水平面上没有位置信息或是完全没有位置信息，则跳过本次循环
       continue;
     }
 
-    position_idxs_.push_back(i);
+    position_idxs_.push_back(i); //将当前图像的索引i添加到position_idxs_容器中，表示该索引对应的图像具有有效的位置信息。
 
     switch (pose_prior->coordinate_system) {
+        //将position_prior向量中的值赋给ells向量的第一个元素（如果options_.ignore_z为true，则将高度设为 0）
       case PosePrior::CoordinateSystem::WGS84: {
         ells[0](0) = position_prior(0);
         ells[0](1) = position_prior(1);
         ells[0](2) = options_.ignore_z ? 0 : position_prior(2);
-
+        //调用gps_transform.EllToXYZ函数将ells向量中的 GPS 坐标转换为笛卡尔坐标xyzs
         const auto xyzs = gps_transform.EllToXYZ(ells);
         position_matrix(num_positions, 0) = static_cast<float>(xyzs[0](0));
         position_matrix(num_positions, 1) = static_cast<float>(xyzs[0](1));
         position_matrix(num_positions, 2) = static_cast<float>(xyzs[0](2));
       } break;
+    //如果坐标系统是UNDEFINED或其他未明确处理的情况，输出一条警告日志，表示未知的坐标系统，并按照笛卡尔坐标的方式处理：
+    //将position_prior向量中的x、y和（根据options_.ignore_z决定的z）坐标值转换为float类型，并存储到position_matrix矩阵的当前行中。
       case PosePrior::CoordinateSystem::UNDEFINED:
       default:
         LOG(WARNING) << "Unknown coordinate system for image " << image_ids_[i]
@@ -686,6 +701,8 @@ SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {
   }
   return position_matrix;
 }
+//这个函数的主要功能是从FeatureMatcherCache中读取图像的位置先验数据，
+// 并将其转换为统一的笛卡尔坐标形式存储在position_matrix中。
 
 TransitivePairGenerator::TransitivePairGenerator(
     const TransitiveMatchingOptions& options,
@@ -714,19 +731,19 @@ bool TransitivePairGenerator::HasFinished() const {
 }
 
 std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
-  if (!image_pairs_.empty()) {
+  if (!image_pairs_.empty()) {  //若image_pairs_容器不为空，表示还有剩余图像对需要处理
     current_batch_idx_++;
-    std::vector<std::pair<image_t, image_t>> batch;
+    std::vector<std::pair<image_t, image_t>> batch;//创建一个空的std::vector<std::pair<image_t, image_t>>类型的batch容器，用于存储当前批次的图像对。
     while (!image_pairs_.empty() &&
            static_cast<int>(batch.size()) < options_.batch_size) {
-      batch.push_back(image_pairs_.back());
+      batch.push_back(image_pairs_.back());  //将图像对添加到batch容器中
       image_pairs_.pop_back();
     }
     LOG(INFO) << StringPrintf(
         "Matching batch [%d/%d]", current_batch_idx_, current_num_batches_);
     return batch;
   }
-
+  //若已完成所有迭代，则返回一个空的图像对
   if (current_iteration_ >= options_.num_iterations) {
     return {};
   }
@@ -738,22 +755,26 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
   LOG(INFO) << StringPrintf(
       "Iteration [%d/%d]", current_iteration_, options_.num_iterations);
 
-  std::vector<std::pair<image_t, image_t>> existing_image_pairs;
-  std::vector<int> existing_num_inliers;
+  std::vector<std::pair<image_t, image_t>> existing_image_pairs;  //存储已存在的图像对
+  std::vector<int> existing_num_inliers;   //存储图像对对应的内点数
+  //通过cache_->AccessDatabase函数访问数据库，并传入一个 lambda 函数。
+  // 在 lambda 函数内部，调用database对象的ReadTwoViewGeometryNumInliers函数，将读取到的图像对和内点数分别存储到existing_image_pairs和existing_num_inliers容器中
   cache_->AccessDatabase(
       [&existing_image_pairs, &existing_num_inliers](const Database& database) {
         database.ReadTwoViewGeometryNumInliers(&existing_image_pairs,
                                                &existing_num_inliers);
       });
-
+  //建立图像间的邻接关系
   std::unordered_map<image_t, std::vector<image_t>> adjacency;
   for (const auto& image_pair : existing_image_pairs) {
+   //将图像对中的第一个图像 ID 作为键，将第二个图像 ID 添加到对应的值向量中，表示这两个图像是相邻的。
+   // 同样，将第二个图像 ID 作为键，将第一个图像 ID 添加到对应的值向量中
     adjacency[image_pair.first].push_back(image_pair.second);
     adjacency[image_pair.second].push_back(image_pair.first);
     image_pair_ids_.insert(
         Database::ImagePairToPairId(image_pair.first, image_pair.second));
   }
-
+//基于现有的邻接关系生成新的图像对
   for (const auto& image : adjacency) {
     const auto image_id1 = image.first;
     for (const auto& image_id2 : image.second) {
@@ -775,7 +796,7 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
       }
     }
   }
-
+  //计算批次数量并递归调用
   current_num_batches_ =
       std::ceil(static_cast<double>(image_pairs_.size()) / options_.batch_size);
 
@@ -824,6 +845,8 @@ std::vector<std::pair<image_t, image_t>> ImportedPairGenerator::Next() {
   LOG(INFO) << StringPrintf("Matching block [%d/%d]",
                             pair_idx_ / options_.block_size + 1,
                             image_pairs_.size() / options_.block_size + 1);
+  //计算当前图像对块的结束索引block_end，取pair_idx_ + options_.block_size和image_pairs_.size()中的较小值。这确保了不会超出图像对的总数。
+  //通过一个循环，从pair_idx_开始到block_end，将image_pairs_中的图像对依次添加到block_image_pairs_容器中，从而填充当前的图像对块。
 
   const size_t block_end =
       std::min(pair_idx_ + options_.block_size, image_pairs_.size());
@@ -835,3 +858,19 @@ std::vector<std::pair<image_t, image_t>> ImportedPairGenerator::Next() {
 }
 
 }  // namespace colmap
+
+
+
+
+
+  
+
+
+     
+
+  
+  
+   
+  
+  
+  L
