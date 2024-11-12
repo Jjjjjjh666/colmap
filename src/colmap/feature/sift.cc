@@ -1462,7 +1462,10 @@ namespace colmap
 #if defined(COLMAP_GPU_ENABLED)
         // Mutexes that ensure that only one thread extracts/matches on the same GPU
         // at the same time, since SiftGPU internally uses static variables.
-        static std::map<int, std::unique_ptr<std::mutex>> sift_match_gpu_mutexes_;
+        /*
+        Mutuexe互斥锁 : 防止两条线程同时对同一公共资源（比如全局变量）进行读写的机制。
+        */
+        static std::map<int, std::unique_ptr<std::mutex>> sift_match_gpu_mutexes_; // unique_ptr独享资源
 
         class SiftGPUFeatureMatcher : public FeatureMatcher
         {

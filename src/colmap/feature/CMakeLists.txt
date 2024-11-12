@@ -28,6 +28,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
+# This CMakeLists.txt file is responsible for setting up the build configuration for the 'feature' module of the colmap project.
+# 
+# It performs the following tasks:
+# 
+# 1. Sets the FOLDER_NAME variable to "feature".
+# 
+# 2. Adds a library target named 'colmap_feature_types' with its source files and links it publicly to 'colmap_util' and 'Eigen3::Eigen'.
+# 
+# 3. Adds a test target named 'types_test' with its source file and links it to 'colmap_feature_types'.
+# 
+# 4. Adds a library target named 'colmap_feature' with its source files and links it publicly to several other colmap libraries and third-party libraries.
+# 
+# 5. If GPU support is enabled, it links 'colmap_feature' to 'colmap_sift_gpu' and optionally to 'GLEW::GLEW' if GUI support is not enabled.
+# 
+# 6. Adds multiple test targets ('index_test', 'utils_test', 'pairing_test', 'sift_test') with their respective source files and links them to the appropriate libraries.
+# 
+# 7. If both tests and GUI support are enabled, it links 'colmap_feature_sift_test' to 'Qt5::Widgets'.
 set(FOLDER_NAME "feature")
 
 COLMAP_ADD_LIBRARY(
