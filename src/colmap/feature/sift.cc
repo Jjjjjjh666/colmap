@@ -154,6 +154,7 @@ namespace colmap
             }
             // 构造函数并确保某些特定的选项设置符合要求
 
+            // 使用静态方法创建sift特征提取器
             static std::unique_ptr<FeatureExtractor> Create(
                 const SiftExtractionOptions &options)
             {
@@ -1767,6 +1768,17 @@ namespace colmap
         }
     }
 
+/*
+    从文本文件中加载SIFT特征。
+    文件具备以下特征：
+    1. 第一行包含两个整数：特征点的数量和描述符的维度（维度必须为128）
+    2. 后面的每一行包含四个整数：x坐标, y坐标, 尺度 scale, 方向 orientation
+
+    参数：
+    path : 文件路径
+    keypoints : 存储加载好的特征点
+    descriptors ：存储加载好的描述符
+*/
     void LoadSiftFeaturesFromTextFile(const std::string &path,
                                       FeatureKeypoints *keypoints,
                                       FeatureDescriptors *descriptors)
@@ -1783,14 +1795,18 @@ namespace colmap
         std::getline(file, line);
         std::stringstream header_line_stream(line);
 
+        // 解析特征点数量
         std::getline(header_line_stream >> std::ws, item, ' ');
         const point2D_t num_features = std::stoul(item);
 
+        // 解析描述符维度
         std::getline(header_line_stream >> std::ws, item, ' ');
         const size_t dim = std::stoul(item);
 
+        // 检查描述符维度是否为128
         THROW_CHECK_EQ(dim, 128) << "SIFT features must have 128 dimensions";
 
+        // 调整 keypoints 和 descriptors 的大小以容纳所有特征
         keypoints->resize(num_features);
         descriptors->resize(num_features, dim);
 
@@ -1799,25 +1815,31 @@ namespace colmap
             std::getline(file, line);
             std::stringstream feature_line_stream(line);
 
+            // 解析x坐标
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float x = std::stold(item);
 
+            // 解析y坐标
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float y = std::stold(item);
 
+            // 解析尺度 scale
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float scale = std::stold(item);
 
+            // 解析方向 orientation
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float orientation = std::stold(item);
 
+            // 存储特征点信息
             (*keypoints)[i] = FeatureKeypoint(x, y, scale, orientation);
 
-            // Descriptor
+            // Descriptor(128维)
             for (size_t j = 0; j < dim; ++j)
             {
                 std::getline(feature_line_stream >> std::ws, item, ' ');
                 const float value = std::stod(item);
+                // 检查描述符值是否在合法范围内（0 到 255）
                 THROW_CHECK_GE(value, 0);
                 THROW_CHECK_LE(value, 255);
                 (*descriptors)(i, j) = TruncateCast<float, uint8_t>(value);
