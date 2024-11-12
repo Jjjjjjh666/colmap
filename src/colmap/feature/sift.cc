@@ -1806,6 +1806,12 @@ namespace colmap
         // 检查描述符维度是否为128
         THROW_CHECK_EQ(dim, 128) << "SIFT features must have 128 dimensions";
 
+
+        /*
+            
+        */
+
+
         // 调整 keypoints 和 descriptors 的大小以容纳所有特征
         keypoints->resize(num_features);
         descriptors->resize(num_features, dim);
