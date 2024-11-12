@@ -52,6 +52,12 @@ FeatureKeypoint::FeatureKeypoint(const float x_,
   a22 = scale_cos_orientation;
 }
 
+/*
+  a11, a12
+  a21, a22
+  构成一个表示旋转的矩阵
+*/
+
 FeatureKeypoint::FeatureKeypoint(const float x_,
                                  const float y_,
                                  const float a11_,
