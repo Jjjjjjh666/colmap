@@ -182,3 +182,14 @@ void LoadSiftFeaturesFromTextFile(const std::string& path,
                                   FeatureDescriptors* descriptors);
 
 }  // namespace colmap
+
+/*
+  sift算法：
+
+  1. 构建一个高斯金字塔：
+    1. 在金字塔的同深度当中，逐步增加高斯函数的标准差进行高斯卷积（高斯模糊）。
+    2. 在金字塔的不同深度中，下采样（减小分辨率），使得每一层图像的宽高为上一层的一半。
+
+  2. 高斯差分金字塔：
+
+*/
