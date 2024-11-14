@@ -1,32 +1,3 @@
-// Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-//     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-//       its contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
 #include "colmap/exe/database.h"
 #include "colmap/exe/feature.h"
 #include "colmap/exe/gui.h"
@@ -39,8 +10,10 @@
 
 namespace {
 
+// 定义一个类型，用于命令函数的指针
 typedef std::function<int(int, char**)> command_func_t;
 
+// 显示帮助信息的函数
 int ShowHelp(
     const std::vector<std::pair<std::string, command_func_t>>& commands) {
   std::cout << colmap::StringPrintf(
@@ -50,12 +23,15 @@ int ShowHelp(
             << std::endl
             << std::endl;
 
+  // 输出使用说明
   std::cout << "Usage:" << std::endl;
   std::cout << "  colmap [command] [options]" << std::endl << std::endl;
 
+  // 输出文档链接
   std::cout << "Documentation:" << std::endl;
   std::cout << "  https://colmap.github.io/" << std::endl << std::endl;
 
+  // 输出示例用法
   std::cout << "Example usage:" << std::endl;
   std::cout << "  colmap help [ -h, --help ]" << std::endl;
   std::cout << "  colmap gui" << std::endl;
@@ -74,6 +50,7 @@ int ShowHelp(
             << std::endl;
   std::cout << "  ..." << std::endl << std::endl;
 
+  // 输出可用命令
   std::cout << "Available commands:" << std::endl;
   std::cout << "  help" << std::endl;
   for (const auto& command : commands) {
@@ -86,12 +63,15 @@ int ShowHelp(
 
 }  // namespace
 
+
 int main(int argc, char** argv) {
+  // 初始化日志系统
   colmap::InitializeGlog(argv);
 #if defined(COLMAP_GUI_ENABLED)
   Q_INIT_RESOURCE(resources);
 #endif
-
+  //commands中存储了所有可以执行的功能
+  // 定义命令列表，每个命令关联一个函数
   std::vector<std::pair<std::string, command_func_t>> commands;
   commands.emplace_back("gui", &colmap::RunGraphicalUserInterface);
   commands.emplace_back("automatic_reconstructor",
@@ -140,10 +120,12 @@ int main(int argc, char** argv) {
   commands.emplace_back("vocab_tree_matcher", &colmap::RunVocabTreeMatcher);
   commands.emplace_back("vocab_tree_retriever", &colmap::RunVocabTreeRetriever);
 
+  // 如果没有输入参数或请求帮助，显示帮助信息
   if (argc == 1) {
     return ShowHelp(commands);
   }
 
+  // 解析用户输入的命令
   const std::string command = argv[1];
   if (command == "help" || command == "-h" || command == "--help") {
     return ShowHelp(commands);
@@ -155,6 +137,7 @@ int main(int argc, char** argv) {
         break;
       }
     }
+    // 如果命令匹配，执行对应函数；否则，显示错误信息
     if (matched_command_func == nullptr) {
       LOG(ERROR) << colmap::StringPrintf(
           "Command `%s` not recognized. To list the "
