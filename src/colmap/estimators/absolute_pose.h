@@ -1,31 +1,11 @@
-// Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-//     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-//       its contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
+//本文件主要用于处理绝对位姿估计问题
+//在计算机视觉中，绝对位姿估计是通过已知的2D图像点和对应的3D世界点来确定相机的位姿
+//这个文件定义了COLMAP项目中的一些绝对位姿估计器类，用于解决相机位姿估计问题。主要包括P3P、P4PF和EPNP估计器
+
+//P3P问题是指通过三对已知的二维图像点和其对应的三维世界点来估计相机的姿态（旋转和平移）
+//P4PF是P3P的扩展，除了估计相机的姿态外，还要估计相机的焦距。需要四对2D-3D点对应关系
+//PNP问题是在已知相机内参的情况下，通过n对二维图像点及其对应的三维世界点来估计相机的姿态（旋转和平移）
+
 
 #pragma once
 
@@ -39,56 +19,80 @@
 
 namespace colmap {
 
+// P3PEstimator类用于解决P3P问题，通过三对2D-3D点来估计相机的旋转和平移。
+
+// 输入：
+// points2D: 归一化的2D图像点，类型为std::vector<Eigen::Vector2d>。
+// points3D: 3D世界点，类型为std::vector<Eigen::Vector3d>。
+
+// 输出：
+// cams_from_world: 最可能的位姿，类型为std::vector<Eigen::Matrix3x4d>。
+
+// 方法：
+// Estimate: 计算相机的姿态。
+// Residuals: 计算平方重投影误差。
 class P3PEstimator {
  public:
-  // The 2D image feature observations.
-  // TODO(jsch): Possibly change to 3D ray directions and express residuals as
-  // angular errors. Needs some evaluation.
+  // 2D图像特征观测。
+  // TODO(jsch): 可能更改为3D射线方向，并将残差表示为角度误差。需要一些评估。
   typedef Eigen::Vector2d X_t;
-  // The observed 3D features in the world frame.
+  // 世界坐标系中的3D特征。
   typedef Eigen::Vector3d Y_t;
-  // The transformation from the world to the camera frame.
+  // 从世界坐标系到相机坐标系的变换。
   typedef Eigen::Matrix3x4d M_t;
 
-  // The minimum number of samples needed to estimate a model.
+  // 估计模型所需的最小样本数量。
   static const int kMinNumSamples = 3;
 
-  // Estimate the most probable solution of the P3P problem from a set of
-  // three 2D-3D point correspondences.
+  // 从一组三对2D-3D点对应关系中估计P3P问题的最可能解。
   //
-  // @param points2D   Normalized 2D image points as 3x2 matrix.
-  // @param points3D   3D world points as 3x3 matrix.
+  // @param points2D   归一化的2D图像点，3x2矩阵。
+  // @param points3D   3D世界点，3x3矩阵。
   //
-  // @return           Most probable pose as length-1 vector of a 3x4 matrix.
+  // @return           最可能的位姿，作为一个3x4矩阵的长度为1的向量返回。
   static void Estimate(const std::vector<X_t>& points2D,
                        const std::vector<Y_t>& points3D,
                        std::vector<M_t>* cams_from_world);
 
-  // Calculate the squared reprojection error given a set of 2D-3D point
-  // correspondences and a projection matrix.
+  // 给定一组2D-3D点对应关系和投影矩阵，计算平方重投影误差。
   //
-  // @param points2D        Normalized 2D image points as Nx2 matrix.
-  // @param points3D        3D world points as Nx3 matrix.
-  // @param cam_from_world  3x4 projection matrix.
-  // @param residuals       Output vector of residuals.
+  // @param points2D        归一化的2D图像点，Nx2矩阵。
+  // @param points3D        3D世界点，Nx3矩阵。
+  // @param cam_from_world  3x4投影矩阵。
+  // @param residuals       输出残差向量。
   static void Residuals(const std::vector<X_t>& points2D,
                         const std::vector<Y_t>& points3D,
                         const M_t& cam_from_world,
                         std::vector<double>* residuals);
 };
 
-// Minimal solver for 6-DOF pose and focal length.
+
+
+
+// P4PFEstimator类用于解决P4PF问题，估计相机的旋转、平移和焦距。
+
+// 输入：
+// points2D: 归一化的2D图像点。
+// points3D: 3D世界点。
+
+// 输出：
+// models: 包含相机姿态和焦距的模型，类型为std::vector<M_t>，其中M_t包括cam_from_world和focal_length。
+
+// 方法：
+// Estimate: 计算相机的姿态和焦距。
+// Residuals: 计算平方重投影误差。
+
 class P4PFEstimator {
  public:
-  // The 2D image feature observations.
-  // Expected to be normalized by the principal point.
+  // 2D图像特征观测。
+  // 期望被主点归一化。
   typedef Eigen::Vector2d X_t;
-  // The observed 3D features in the world frame.
+  // 世界坐标系中的3D特征。
   typedef Eigen::Vector3d Y_t;
   struct M_t {
-    // The transformation from the world to the camera frame.
+    // 从世界坐标系到相机坐标系的变换。
     Eigen::Matrix3x4d cam_from_world;
-    // The focal length of the camera.
+    // 相机的焦距。
     double focal_length = 0.;
   };
 
@@ -104,47 +108,49 @@ class P4PFEstimator {
                         std::vector<double>* residuals);
 };
 
-// EPNP solver for the PNP (Perspective-N-Point) problem. The solver needs a
-// minimum of 4 2D-3D correspondences.
-//
-// The algorithm is based on the following paper:
-//
-//    Lepetit, Vincent, Francesc Moreno-Noguer, and Pascal Fua.
-//    "Epnp: An accurate o (n) solution to the pnp problem."
-//    International journal of computer vision 81.2 (2009): 155-166.
-//
-// The implementation is based on their original open-source release, but is
-// ported to Eigen and contains several improvements over the original code.
+
+
+// EPNPEstimator类用于解决PNP问题，适用于4个或更多2D-3D点。
+
+// 输入：
+// points2D: 归一化的2D图像点。
+// points3D: 3D世界点。
+
+// 输出：
+// cams_from_world: 最可能的位姿，类型为std::vector<Eigen::Matrix3x4d>。
+
+// 方法：
+// Estimate: 计算相机的姿态。
+// Residuals: 计算平方重投影误差。
+
 class EPNPEstimator {
  public:
-  // The 2D image feature observations.
+  // 2D图像特征观测。
   typedef Eigen::Vector2d X_t;
-  // The observed 3D features in the world frame.
+  // 世界坐标系中的3D特征。
   typedef Eigen::Vector3d Y_t;
-  // The transformation from the world to the camera frame.
+  // 从世界坐标系到相机坐标系的变换。
   typedef Eigen::Matrix3x4d M_t;
 
-  // The minimum number of samples needed to estimate a model.
+  // 估计模型所需的最小样本数量。
   static const int kMinNumSamples = 4;
 
-  // Estimate the most probable solution of the P3P problem from a set of
-  // three 2D-3D point correspondences.
+  // 从一组三对2D-3D点对应关系中估计P3P问题的最可能解。
   //
-  // @param points2D   Normalized 2D image points as 3x2 matrix.
-  // @param points3D   3D world points as 3x3 matrix.
+  // @param points2D   归一化的2D图像点，3x2矩阵。
+  // @param points3D   3D世界点，3x3矩阵。
   //
-  // @return           Most probable pose as length-1 vector of a 3x4 matrix.
+  // @return           最可能的位姿，作为一个3x4矩阵的长度为1的向量返回。
   static void Estimate(const std::vector<X_t>& points2D,
                        const std::vector<Y_t>& points3D,
                        std::vector<M_t>* cams_from_world);
 
-  // Calculate the squared reprojection error given a set of 2D-3D point
-  // correspondences and a projection matrix.
+  // 给定一组2D-3D点对应关系和投影矩阵，计算平方重投影误差。
   //
-  // @param points2D        Normalized 2D image points as Nx2 matrix.
-  // @param points3D        3D world points as Nx3 matrix.
-  // @param cam_from_world  3x4 projection matrix.
-  // @param residuals       Output vector of residuals.
+  // @param points2D        归一化的2D图像点，Nx2矩阵。
+  // @param points3D        3D世界点，Nx3矩阵。
+  // @param cam_from_world  3x4投影矩阵。
+  // @param residuals       输出残差向量。
   static void Residuals(const std::vector<X_t>& points2D,
                         const std::vector<Y_t>& points3D,
                         const M_t& cam_from_world,
