@@ -125,6 +125,7 @@ class AutomaticReconstructionController : public Thread {
 // 执行密集映射的函数
   void RunDenseMapper();
 
+// 存储自动重建的配置选项，不可修改（通过const修饰）
   const Options options_;
   OptionManager option_manager_;
   std::shared_ptr<ReconstructionManager> reconstruction_manager_;
