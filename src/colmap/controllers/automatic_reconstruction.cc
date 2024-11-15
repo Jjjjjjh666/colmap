@@ -42,14 +42,19 @@
 
 namespace colmap {
 
+// AutomaticReconstructionController类的构造函数实现
+// 用于初始化自动重建控制器对象的各种成员变量和配置选项
 AutomaticReconstructionController::AutomaticReconstructionController(
     const Options& options,
     std::shared_ptr<ReconstructionManager> reconstruction_manager)
     : options_(options),
       reconstruction_manager_(std::move(reconstruction_manager)),
       active_thread_(nullptr) {
+// 检查工作区路径对应的目录是否存在，如果不存在则抛出异常
   THROW_CHECK_DIR_EXISTS(options_.workspace_path);
+// 检查图像路径对应的目录是否存在，如果不存在则抛出异常
   THROW_CHECK_DIR_EXISTS(options_.image_path);
+ // 确保传入的重建管理器指针不为空，否则抛出异常
   THROW_CHECK_NOTNULL(reconstruction_manager_);
 
   option_manager_.AddAllOptions();
@@ -58,6 +63,7 @@ AutomaticReconstructionController::AutomaticReconstructionController(
   *option_manager_.database_path =
       JoinPaths(options_.workspace_path, "database.db");
 
+// 根据重建质量级别对选项管理器进行相应的修改
   if (options_.data_type == DataType::VIDEO) {
     option_manager_.ModifyForVideoData();
   } else if (options_.data_type == DataType::INDIVIDUAL) {
@@ -97,7 +103,8 @@ AutomaticReconstructionController::AutomaticReconstructionController(
   reader_options.single_camera_per_folder = options_.single_camera_per_folder;
   reader_options.camera_model = options_.camera_model;
   reader_options.camera_params = options_.camera_params;
-
+        
+// 设置各个阶段（如SIFT提取、匹配、束调整等）是否使用GPU
   option_manager_.sift_extraction->use_gpu = options_.use_gpu;
   option_manager_.sift_matching->use_gpu = options_.use_gpu;
   option_manager_.mapper->ba_use_gpu = options_.use_gpu;
@@ -109,9 +116,10 @@ AutomaticReconstructionController::AutomaticReconstructionController(
   option_manager_.mapper->ba_gpu_index = options_.gpu_index;
   option_manager_.bundle_adjustment->gpu_index = options_.gpu_index;
 
+// 创建特征提取控制器对象，并传入相关参数
   feature_extractor_ = CreateFeatureExtractorController(
       reader_options, *option_manager_.sift_extraction);
-
+// 创建穷举特征匹配器对象，并传入相关参数
   exhaustive_matcher_ =
       CreateExhaustiveFeatureMatcher(*option_manager_.exhaustive_matching,
                                      *option_manager_.sift_matching,
@@ -212,6 +220,7 @@ void AutomaticReconstructionController::RunFeatureMatching() {
   active_thread_ = nullptr;
 }
 
+// 执行稀疏映射的具体函数实现
 void AutomaticReconstructionController::RunSparseMapper() {
   const auto sparse_path = JoinPaths(options_.workspace_path, "sparse");
   if (ExistsDir(sparse_path)) {
@@ -226,7 +235,7 @@ void AutomaticReconstructionController::RunSparseMapper() {
       return;
     }
   }
-
+// 创建增量映射器对象，并传入相关参数
   IncrementalPipeline mapper(option_manager_.mapper,
                              *option_manager_.image_path,
                              *option_manager_.database_path,
@@ -239,6 +248,7 @@ void AutomaticReconstructionController::RunSparseMapper() {
   option_manager_.Write(JoinPaths(sparse_path, "project.ini"));
 }
 
+// 执行密集映射的具体函数实现
 void AutomaticReconstructionController::RunDenseMapper() {
   CreateDirIfNotExists(JoinPaths(options_.workspace_path, "dense"));
 
@@ -263,7 +273,7 @@ void AutomaticReconstructionController::RunDenseMapper() {
     }
 
     // Image undistortion.
-
+// 图像去畸变操作
     if (!ExistsDir(dense_path)) {
       CreateDirIfNotExists(dense_path);
 
@@ -283,7 +293,7 @@ void AutomaticReconstructionController::RunDenseMapper() {
     }
 
     // Patch match stereo.
-
+// 块匹配立体操作
 #if defined(COLMAP_CUDA_ENABLED)
     {
       mvs::PatchMatchController patch_match_controller(
@@ -301,8 +311,7 @@ void AutomaticReconstructionController::RunDenseMapper() {
       return;
     }
 
-    // Stereo fusion.
-
+   // 立体融合操作
     if (!ExistsFile(fused_path)) {
       auto fusion_options = *option_manager_.stereo_fusion;
       const int num_reg_images =
@@ -328,8 +337,7 @@ void AutomaticReconstructionController::RunDenseMapper() {
       return;
     }
 
-    // Surface meshing.
-
+ // 表面网格生成操作
     if (!ExistsFile(meshing_path)) {
       if (options_.mesher == Mesher::POISSON) {
         mvs::PoissonMeshing(
