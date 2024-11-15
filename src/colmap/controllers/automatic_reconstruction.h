@@ -40,8 +40,11 @@ namespace colmap {
 
 class AutomaticReconstructionController : public Thread {
  public:
+// 定义枚举类型DataType，表示输入数据的类型
   enum class DataType { INDIVIDUAL, VIDEO, INTERNET };
+// 定义枚举类型Quality，表示重建质量的级别
   enum class Quality { LOW, MEDIUM, HIGH, EXTREME };
+// 定义枚举类型Mesher，表示用于生成网格的算法类型
   enum class Mesher { POISSON, DELAUNAY };
 
   struct Options {
@@ -89,20 +92,22 @@ class AutomaticReconstructionController : public Thread {
     // The meshing algorithm to be used.
     Mesher mesher = Mesher::POISSON;
 
-    // The number of threads to use in all stages.
+    // 在所有阶段要使用的线程数量
     int num_threads = -1;
 
-    // Whether to use the GPU in feature extraction, feature matching, and
-    // bundle adjustment.
+  // 是否在特征提取、特征匹配和束调整阶段使用GPU
     bool use_gpu = true;
 
-    // Index of the GPU used for GPU stages. For multi-GPU computation in
-    // feature extraction/matching, you should separate multiple GPU indices by
-    // comma, e.g., "0,1,2,3". For single-GPU stages only the first GPU will be
-    // used. By default, all available GPUs will be used in all stages.
+    // 用于GPU阶段的GPU索引。对于多GPU计算（在特征提取/匹配中），
+        // 可以用逗号分隔多个GPU索引，例如 "0,1,2,3"。对于单GPU阶段，仅使用第一个GPU。
+        // 默认情况下，所有可用的GPU将在所有阶段中使用
     std::string gpu_index = "-1";
   };
 
+// 构造函数
+    // 参数：
+    // - options：包含自动重建的各种配置选项的结构体
+    // - reconstruction_manager：指向重建管理器的共享智能指针
   AutomaticReconstructionController(
       const Options& options,
       std::shared_ptr<ReconstructionManager> reconstruction_manager);
@@ -111,11 +116,16 @@ class AutomaticReconstructionController : public Thread {
 
  private:
   void Run() override;
+// 执行特征提取的函数
   void RunFeatureExtraction();
+ // 执行特征匹配的函数
   void RunFeatureMatching();
+// 执行稀疏映射的函数
   void RunSparseMapper();
+// 执行密集映射的函数
   void RunDenseMapper();
 
+// 存储自动重建的配置选项，不可修改（通过const修饰）
   const Options options_;
   OptionManager option_manager_;
   std::shared_ptr<ReconstructionManager> reconstruction_manager_;
