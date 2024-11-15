@@ -27,8 +27,11 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-
+# 设置一个变量FOLDER_NAME，其值为"controllers"，用于后续可能的路径或名称相关操作
 set(FOLDER_NAME "controllers")
+# 使用COLMAP_ADD_LIBRARY宏来创建一个名为colmap_controllers的库
+# SRCS（源文件）部分列出了构成该库的所有源文件（.h头文件和对应的.cc实现文件）
+# 这些源文件涉及到自动重建、束调整、分层映射、特征提取、特征匹配等多个功能模块相关的代码
 
 COLMAP_ADD_LIBRARY(
     NAME colmap_controllers
@@ -42,6 +45,8 @@ COLMAP_ADD_LIBRARY(
         image_reader.h image_reader.cc
         incremental_mapper.h incremental_mapper.cc
         option_manager.h option_manager.cc
+    # PUBLIC_LINK_LIBS部分列出了该库在链接时需要公开链接的其他库
+    # 这些库包括colmap_estimators、colmap_feature等多个colmap相关的库以及Eigen3::Eigen、Boost::program_options等外部库
     PUBLIC_LINK_LIBS
         colmap_estimators
         colmap_feature
@@ -50,6 +55,8 @@ COLMAP_ADD_LIBRARY(
         colmap_util
         Eigen3::Eigen
         Boost::program_options
+    # PRIVATE_LINK_LIBS部分列出了该库在链接时需要私有链接的其他库
+    # 同样包含多个colmap相关库以及Ceres::ceres、Boost::boost等外部库
     PRIVATE_LINK_LIBS
         colmap_image
         colmap_math
@@ -58,12 +65,16 @@ COLMAP_ADD_LIBRARY(
         Ceres::ceres
         Boost::boost
 )
-
+# 使用COLMAP_ADD_TEST宏来创建一个名为hierarchical_mapper_test的测试可执行文件
+# SRCS指定了该测试的源文件为hierarchical_mapper_test.cc
+# LINK_LIBS指定了该测试可执行文件在链接时需要链接的库为colmap_controllers库
 COLMAP_ADD_TEST(
     NAME hierarchical_mapper_test
     SRCS hierarchical_mapper_test.cc
     LINK_LIBS colmap_controllers
 )
+# 使用COLMAP_ADD_TEST宏来创建一个名为incremental_mapper_test的测试可执行文件
+# 类似地，SRCS指定源文件为incremental_mapper_test.cc，LINK_LIBS指定链接colmap_controllers库
 COLMAP_ADD_TEST(
     NAME incremental_mapper_test
     SRCS incremental_mapper_test.cc
