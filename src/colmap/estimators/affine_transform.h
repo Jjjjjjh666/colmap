@@ -20,10 +20,6 @@
 // 仿射变换帮助在不同图像之间建立对应关系。
 
 
-
-
-
-
 #pragma once
 
 #include "colmap/util/eigen_alignment.h"
