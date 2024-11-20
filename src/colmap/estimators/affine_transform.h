@@ -1,31 +1,28 @@
-// Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-//     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-//       its contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
+//这个代码定义了一个名为 AffineTransformEstimator 的类，用于估计2D 仿射变换
+
+//仿射变换是一种线性变换，常用于计算机视觉和图像处理。它可以描述图像中点的以下操作
+//缩放：改变图像的大小。
+//旋转：围绕某个点旋转图像。
+//平移：移动图像的位置。
+//剪切：将图像的形状拉伸或压缩。
+//仿射变换相关视频可以看：b站BV13T411d75F
+
+//这个类的主要功能是从一组对应的2D点中估计出仿射变换矩阵。具体用途包括：
+
+// 图像配准：将两幅图像对齐，使它们在相同的坐标系下进行比较或合并。
+// 这在图像拼接、全景图生成中非常重要。
+
+// 图像校正：修正图像中的几何失真。
+// 例如，校正因相机角度或镜头畸变导致的图像变形。
+
+// 特征匹配：在图像处理和计算机视觉中，
+// 经常需要在不同视角下识别相同的物体。
+// 仿射变换帮助在不同图像之间建立对应关系。
+
+
+
+
+
 
 #pragma once
 
@@ -44,15 +41,20 @@ class AffineTransformEstimator {
   typedef Eigen::Vector2d Y_t;
   typedef Eigen::Matrix<double, 2, 3> M_t;
 
-  // The minimum number of samples needed to estimate a model.
+  // 估计模型所需的最小样本数量。
   static const int kMinNumSamples = 3;
 
-  // Estimate the affine transformation from at least 3 correspondences.
+  // 从至少3个对应点估计仿射变换。
+  //接受两个点集 points1 和 points2，每个点集代表一幅图像中的特征点。
+  //估计出一个或多个仿射变换矩阵 models，这些矩阵描述了如何从 points1 变换到 points2。
   static void Estimate(const std::vector<X_t>& points1,
                        const std::vector<Y_t>& points2,
                        std::vector<M_t>* models);
 
-  // Compute the squared transformation error.
+
+  //计算变换后的点与目标点之间的误差（平方误差）。
+  //评估变换的准确性，误差越小，变换越精确
+  // 计算平方变换误差。(Residuals 函数用于评估 Estimate 得到的仿射变换矩阵的可靠性)
   static void Residuals(const std::vector<X_t>& points1,
                         const std::vector<Y_t>& points2,
                         const M_t& E,
