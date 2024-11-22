@@ -130,3 +130,6 @@ std::unique_ptr<FeatureDescriptorIndex> FeatureDescriptorIndex::Create() {
 
 }  // namespace colmap
 //这段代码实现了一个基于 FLANN 算法的特征描述符索引和搜索功能。
+//FLANN是一个对大数据集和高维特征进行最近邻搜索的算法的集合，包括随机k-d树算法，优先搜索k-means树算法和层次聚类数算法
+
+ 
