@@ -185,6 +185,7 @@ void LoadSiftFeaturesFromTextFile(const std::string& path,
 
 /*
 
+
   sift算法：
 
   1. 构建尺度空间：
@@ -213,7 +214,7 @@ void LoadSiftFeaturesFromTextFile(const std::string& path,
     2. 计算特征点周围点的梯度大小，找到梯度最大值作为主方向，梯度值大于最大值的百分之八十作为辅方向。
     3. 如果特征点过于靠近边缘没有足够的相邻点也会被舍弃。
 
-  6. 描述子的计算
+  6. 描述子的计算:
     1. 将特征点周围一圈划分为4*4个子区域，每个子区域有8个方向。
     2. 重新定义坐标：以特征点的参考方向作为主方向。
     3. 对于每一个像素点计算其梯度，并将梯度分配到8个方向上去。

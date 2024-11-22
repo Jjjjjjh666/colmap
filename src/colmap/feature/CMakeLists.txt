@@ -83,7 +83,7 @@ COLMAP_ADD_LIBRARY(
         colmap_sensor
         colmap_vlfeat
         Eigen3::Eigen
-        flann
+        flann # Fast Library for Approximate Nearest Neighbors (FLANN) used for fast nearest neighbor searches
         lz4
 )
 if(GPU_ENABLED)

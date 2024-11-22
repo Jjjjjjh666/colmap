@@ -109,7 +109,7 @@ namespace colmap
         // the VLFeat format into the original SIFT format that is also used by SiftGPU.
         TransformVLFeatToUBCFeatureDescriptors(
             const FeatureDescriptors &vlfeat_descriptors)
-        { // 将输入的基于VLFeat的特征描述符转化为UBC的特征描述符
+        { // 将输入的基于VLFeat的特征描述符转化为UBC的特征描述符(单纯的格式转换)
             FeatureDescriptors ubc_descriptors(vlfeat_descriptors.rows(),
                                                vlfeat_descriptors.cols());
             const std::array<int, 8> q{{0, 7, 6, 5, 4, 3, 2, 1}};
@@ -1805,12 +1805,6 @@ namespace colmap
 
         // 检查描述符维度是否为128
         THROW_CHECK_EQ(dim, 128) << "SIFT features must have 128 dimensions";
-
-
-        /*
-            
-        */
-
 
         // 调整 keypoints 和 descriptors 的大小以容纳所有特征
         keypoints->resize(num_features);

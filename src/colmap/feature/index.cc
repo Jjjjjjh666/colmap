@@ -99,7 +99,7 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
                       l2_dist_matrix,
                       num_eff_neighbors,
                       flann::SearchParams(kNumLeavesToVisit));
-   //knn算法：
+   //knn算法：当预测一个新的值x的时候，根据它距离最近的K个点是什么类别来判断x属于哪个类别。
 
     for (int query_idx = 0; query_idx < num_query_descriptors; ++query_idx) {
       for (int k = 0; k < num_eff_neighbors; ++k) {
@@ -107,7 +107,7 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
             std::round(l2_dist_vector[query_idx * num_eff_neighbors + k]));
       }
     }
-   遍历查询索引和近邻索引，将 L2 距离向量中的值转换为整数，并存储在 L2 距离矩阵中。
+   // 遍历查询索引和近邻索引，将 L2 距离向量中的值转换为整数，并存储在 L2 距离矩阵中。
   }
 
  private:
@@ -117,7 +117,7 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
   constexpr static int kNumTreesInForest = 4;
   constexpr static int kNumLeavesToVisit = 128;
 
-  using FlannIndexType = flann::Index<flann::L2<uint8_t>>; //表示flann索引的类型
+  using FlannIndexType = flann::Index<flann::L2<uint8_t>>; //表示flann索引的类型:用于存储和管理数据点的索引结构，可以快速找到某个点的近邻。
   std::unique_ptr<FlannIndexType> index_;  //定义了一个指向FlannIndexType类型的智能指针index_，用于存储特征描述符索引
   int num_index_descriptors_ = 0;  //存储索引中的特征描述符数量
 };
