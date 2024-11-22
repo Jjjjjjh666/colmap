@@ -109,7 +109,7 @@ namespace colmap
         // the VLFeat format into the original SIFT format that is also used by SiftGPU.
         TransformVLFeatToUBCFeatureDescriptors(
             const FeatureDescriptors &vlfeat_descriptors)
-        { // 将输入的基于VLFeat的特征描述符转化为UBC的特征描述符(单纯的格式转换)
+        { // 将输入的基于VLFeat的特征描述符转化为UBC的特征描述符
             FeatureDescriptors ubc_descriptors(vlfeat_descriptors.rows(),
                                                vlfeat_descriptors.cols());
             const std::array<int, 8> q{{0, 7, 6, 5, 4, 3, 2, 1}};
@@ -154,7 +154,6 @@ namespace colmap
             }
             // 构造函数并确保某些特定的选项设置符合要求
 
-            // 使用静态方法创建sift特征提取器
             static std::unique_ptr<FeatureExtractor> Create(
                 const SiftExtractionOptions &options)
             {
@@ -1174,7 +1173,7 @@ namespace colmap
         // 函数的主要目的是在两个特征点集合之间找到最佳匹配点，并可以根据需要进行双向交叉验证。
         // 通过调用FindBestMatchesOneWayIndex函数来分别找到两个方向的匹配结果，然后根据是否需要交叉验证来决定最终的匹配结果。
         // 如果需要交叉验证，则会检查两个方向的匹配结果是否一致，只有一致的匹配才会被添加到最终的匹配结果中
-
+        // 共用体类 距离类型
         enum class DistanceType
         {
             L2,
@@ -1182,13 +1181,15 @@ namespace colmap
         };
 
         Eigen::RowMajorMatrixXi ComputeSiftDistanceMatrix(
-            const DistanceType distance_type,
+            const DistanceType distance_type, // 距离类型
             const FeatureKeypoints *keypoints1,
             const FeatureKeypoints *keypoints2,
             const FeatureDescriptors &descriptors1,
             const FeatureDescriptors &descriptors2,
-            const std::function<bool(float, float, float, float)> &guided_filter)
+            const std::function<bool(float, float, float, float)> &guided_filter) // 引导过滤函数
         {
+            // 参数有效性检查
+            // 如果提供了guided_filter函数，则检查keypoints1和keypoints2是否非空，并确保关键点数量与对应的描述子行数一致。
             if (guided_filter != nullptr)
             {
                 THROW_CHECK_NOTNULL(keypoints1);
@@ -1197,29 +1198,35 @@ namespace colmap
                 THROW_CHECK_EQ(keypoints2->size(), descriptors2.rows());
             }
 
+            // 将输入的浮点型描述子descriptors1和descriptors2转换为整数型
             const Eigen::Matrix<int, Eigen::Dynamic, 128> descriptors1_int =
                 descriptors1.cast<int>();
             const Eigen::Matrix<int, Eigen::Dynamic, 128> descriptors2_int =
                 descriptors2.cast<int>();
 
+            // 创建一个行主序的矩阵用于存储计算出的描述子之间的距离值
             Eigen::RowMajorMatrixXi distances(descriptors1.rows(), descriptors2.rows());
             for (FeatureDescriptors::Index i1 = 0; i1 < descriptors1.rows(); ++i1)
             {
                 for (FeatureDescriptors::Index i2 = 0; i2 < descriptors2.rows(); ++i2)
                 {
+                    /// 如果guided_filter返回true，则根据distance_type设置特定的距离值
                     if (guided_filter != nullptr && guided_filter((*keypoints1)[i1].x,
                                                                   (*keypoints1)[i1].y,
                                                                   (*keypoints2)[i2].x,
                                                                   (*keypoints2)[i2].y))
                     {
+                        // 对于L2距离，设置一个预定义的常量值
                         if (distance_type == DistanceType::L2)
                         {
                             distances(i1, i2) = kSqSiftDescriptorNorm;
                         }
+                        // 对于点积，设置距离为0
                         else if (distance_type == DistanceType::DOT_PRODUCT)
                         {
                             distances(i1, i2) = 0;
                         }
+                        // 否则抛出异常
                         else
                         {
                             LOG(FATAL_THROW) << "Distance type not supported";
@@ -1227,17 +1234,21 @@ namespace colmap
                     }
                     else
                     {
+                        // 如果guided_filter未返回true或未提供，则计算实际的L2距离或点积
                         if (distance_type == DistanceType::L2)
                         {
+                            // 计算两个整数型描述子行之间的差的平方范数（L2距离）
                             distances(i1, i2) =
                                 (descriptors1_int.row(i1) - descriptors2_int.row(i2))
                                     .squaredNorm();
                         }
                         else if (distance_type == DistanceType::DOT_PRODUCT)
                         {
+                            // 计算两个整数型描述子行之间的点积
                             distances(i1, i2) =
                                 descriptors1_int.row(i1).dot(descriptors2_int.row(i2));
                         }
+                        // 否则抛出异常
                         else
                         {
                             LOG(FATAL_THROW) << "Distance type not supported";
@@ -1248,17 +1259,21 @@ namespace colmap
 
             return distances;
         }
+        // ComputeSiftDistanceMatrix函数是一个用于计算两组SIFT特征描述子之间距离矩阵的函数。
+        // 它支持L2距离和点积两种计算方式，并可选地使用一个guided_filter函数来根据关键点位置信息过滤某些距离计算。
+        // 函数通过双层循环遍历所有描述子对，并根据所选的距离类型和过滤条件计算相应的距离值，最后返回一个包含所有计算结果的矩阵。
 
         class SiftCPUFeatureMatcher : public FeatureMatcher
         {
         public:
             explicit SiftCPUFeatureMatcher(const SiftMatchingOptions &options)
-                : options_(options)
+                : options_(options) // 初始化成员变量
             {
+                // 参数有效性检查
                 THROW_CHECK(options_.Check());
             }
 
-            static std::unique_ptr<FeatureMatcher> Create(
+            static std::unique_ptr<FeatureMatcher> Create( // 创建featurematcher对象，并返回一个智能指针
                 const SiftMatchingOptions &options)
             {
                 return std::make_unique<SiftCPUFeatureMatcher>(options);
@@ -1345,6 +1360,7 @@ namespace colmap
                              const Image &image2,
                              TwoViewGeometry *two_view_geometry) override
             {
+                // 参数有效性检查
                 THROW_CHECK_NOTNULL(two_view_geometry);
                 THROW_CHECK_NE(image1.image_id, kInvalidImageId);
                 THROW_CHECK_NE(image2.image_id, kInvalidImageId);
@@ -1357,8 +1373,10 @@ namespace colmap
                 THROW_CHECK_EQ(image1.descriptors->cols(), 128);
                 THROW_CHECK_EQ(image2.descriptors->cols(), 128);
 
+                // 清除对象中旧的匹配结果
                 two_view_geometry->inlier_matches.clear();
-
+                // 检查是否应该使用暴力匹配器（cpu_brute_force_matcher）。
+                // 如果不是，并且当前图像与上一次处理的图像不同，则从缓存中获取该图像的描述符索引。
                 if (!options_.cpu_brute_force_matcher &&
                     (prev_image_id1_ == kInvalidImageId ||
                      prev_image_id1_ != image1.image_id))
@@ -1375,29 +1393,40 @@ namespace colmap
                     prev_image_id2_ = image2.image_id;
                 }
 
+                // 计算最大残差值 max_error的平方
                 const float max_residual = max_error * max_error;
-
+                // 将two_view_geometry中的F和H矩阵转换为float类型，并存储在局部变量F和H中。
                 const Eigen::Matrix3f F = two_view_geometry->F.cast<float>();
                 const Eigen::Matrix3f H = two_view_geometry->H.cast<float>();
 
+                // 定义一个std::function类型的guided_filter，它接受四个float参数并返回一个bool值。
+                // 这个过滤器将根据两幅图像之间的几何关系来决定哪些关键点对是有效的
                 std::function<bool(float, float, float, float)> guided_filter;
+                // 判断视图几何配置的两种可能情况 校准或未校准
                 if (two_view_geometry->config == TwoViewGeometry::CALIBRATED ||
                     two_view_geometry->config == TwoViewGeometry::UNCALIBRATED)
                 {
+                    // 如果上述条件满足，我们为guided_filter赋值一个lambda表达式。
+                    // 这个lambda表达式定义了如何基于校准的或未校准的视图几何来过滤关键点对。
                     guided_filter =
                         [&](const float x1, const float y1, const float x2, const float y2)
                     {
                         const Eigen::Vector3f p1(x1, y1, 1.0f);
                         const Eigen::Vector3f p2(x2, y2, 1.0f);
+                        // 使用基础矩阵F对p1进行变换，得到一个新的3D向量Fx1。
                         const Eigen::Vector3f Fx1 = F * p1;
+                        // 使用F的转置矩阵对p2进行变换，得到一个新的3D向量Ftx2。
                         const Eigen::Vector3f Ftx2 = F.transpose() * p2;
-                        const float x2tFx1 = p2.transpose() * Fx1;
+                        const float x2tFx1 = p2.transpose() * Fx1; //// 计算p2的转置与Fx1的点积，得到一个浮点数x2tFx1。
+                                                                   // 返回一个bool值比较了x2tFx1的平方与Fx1和Ftx2的某些元素的平方和之间的比率是否大于max_residual。
                         return x2tFx1 * x2tFx1 /
+                                   return x2tFx1 * x2tFx1 /
                                    (Fx1(0) * Fx1(0) + Fx1(1) * Fx1(1) + Ftx2(0) * Ftx2(0) +
                                     Ftx2(1) * Ftx2(1)) >
                                max_residual;
                     };
                 }
+                // 否则，如果视图几何配置是平面或全景或平面或全景，则将guided_filter设置为lambda表达式。
                 else if (two_view_geometry->config == TwoViewGeometry::PLANAR ||
                          two_view_geometry->config == TwoViewGeometry::PANORAMIC ||
                          two_view_geometry->config ==
@@ -1408,6 +1437,8 @@ namespace colmap
                     {
                         const Eigen::Vector3f p1(x1, y1, 1.0f);
                         const Eigen::Vector2f p2(x2, y2);
+                        // 使用单应性矩阵H对p1进行变换，并对结果进行齐次归一化，得到一个2D向量。
+                        // 然后计算这个归一化后的向量与p2之间的平方欧氏距离。
                         return ((H * p1).hnormalized() - p2).squaredNorm() > max_residual;
                     };
                 }
@@ -1417,7 +1448,8 @@ namespace colmap
                 }
 
                 THROW_CHECK(guided_filter);
-
+                // 调用ComputeSiftDistanceMatrix函数计算从image1到image2的SIFT距离矩阵（l2_dists_1to2），
+                // 以及从image2到image1的距离矩阵（通过转置得到l2_dists_2to1）。
                 const Eigen::RowMajorMatrixXi l2_dists_1to2 =
                     ComputeSiftDistanceMatrix(DistanceType::L2,
                                               image1.keypoints.get(),
@@ -1427,6 +1459,7 @@ namespace colmap
                                               guided_filter);
                 const Eigen::RowMajorMatrixXi l2_dists_2to1 = l2_dists_1to2.transpose();
 
+                // 创建并初始化两个索引矩阵indices_1to2和indices_2to1
                 Eigen::RowMajorMatrixXi indices_1to2(l2_dists_1to2.rows(),
                                                      l2_dists_1to2.cols());
                 for (int i = 0; i < indices_1to2.rows(); ++i)
@@ -1441,7 +1474,8 @@ namespace colmap
                     indices_2to1.row(i) = Eigen::VectorXi::LinSpaced(
                         indices_2to1.cols(), 0, indices_2to1.cols() - 1);
                 }
-
+                // 调用FindBestMatchesIndex函数，使用之前计算的距离矩阵和索引矩阵来查找两幅图像之间的最佳匹配。
+                // 这些匹配结果将存储在two_view_geometry->inlier_matches中。
                 FindBestMatchesIndex(indices_1to2,
                                      l2_dists_1to2,
                                      indices_2to1,
@@ -1451,7 +1485,9 @@ namespace colmap
                                      options_.cross_check,
                                      &two_view_geometry->inlier_matches);
             }
-
+            // MatchGuided函数的整体功能是实现两幅图像之间的特征点匹配。
+            // 它首先检查输入参数的有效性，然后清除旧的匹配结果。接下来，根据配置和需要，它可能从缓存中获取描述符索引以优化性能
+            // 。然后，它定义了一个过滤器来根据几何关系过滤关键点对，并计算SIFT距离矩阵和索引矩阵。最后，它调用一个函数来查找并存储两幅图像之间的最佳匹配结果
         private:
             const SiftMatchingOptions options_;
             image_t prev_image_id1_ = kInvalidImageId;
@@ -1463,10 +1499,8 @@ namespace colmap
 #if defined(COLMAP_GPU_ENABLED)
         // Mutexes that ensure that only one thread extracts/matches on the same GPU
         // at the same time, since SiftGPU internally uses static variables.
-        /*
-        Mutuexe互斥锁 : 防止两条线程同时对同一公共资源（比如全局变量）进行读写的机制。
-        */
-        static std::map<int, std::unique_ptr<std::mutex>> sift_match_gpu_mutexes_; // unique_ptr独享资源
+        // 这几行注释和代码定义了一个静态的std::map，它映射整数（可能是GPU的索引）到std::mutex的智能指针。
+        static std::map<int, std::unique_ptr<std::mutex>> sift_match_gpu_mutexes_;
 
         class SiftGPUFeatureMatcher : public FeatureMatcher
         {
@@ -1482,15 +1516,18 @@ namespace colmap
             {
                 // SiftGPU uses many global static state variables and the initialization
                 // must be thread-safe in order to work correctly. This is enforced here.
+                // 由于SiftGPU使用了许多全局静态状态变量，其初始化必须是线程安全的。
+                // 这里，通过使用一个静态的std::mutex和std::lock_guard来确保在Create函数执行期间，其他线程无法进入此代码段，从而保证了线程安全。
                 static std::mutex mutex;
                 std::lock_guard<std::mutex> lock(mutex);
 
+                // 将传入的index选项转换为整数向量并检查该向量的大小是否为1，否则抛出错误
                 const std::vector<int> gpu_indices = CSVToVector<int>(options.gpu_index);
                 THROW_CHECK_EQ(gpu_indices.size(), 1) << "SiftGPU can only run on one GPU";
-
+                // 代码初始化了SiftGPU对象，并设置了其详细级别为0（即不输出详细信息）。
                 SiftGPU sift_gpu;
                 sift_gpu.SetVerbose(0);
-
+                // 创建了一个SiftGPUFeatureMatcher的实例，并初始化了其内部的sift_match_gpu_成员，该成员是SiftMatchGPU类型的对象
                 auto matcher = std::make_unique<SiftGPUFeatureMatcher>(options);
 
                 // Note that the SiftMatchGPU object is not movable (for whatever reason).
@@ -1499,6 +1536,8 @@ namespace colmap
 
                 matcher->sift_match_gpu_ = SiftMatchGPU(options.max_num_matches);
 
+// 根据是否定义了COLMAP_CUDA_ENABLED，代码设置sift_match_gpu_使用的语言。
+// 如果定义了，并且GPU索引非负，则使用CUDA；否则，使用OpenGL的GLSL。这是为了支持不同的GPU加速库。（？？）
 #if defined(COLMAP_CUDA_ENABLED)
                 if (gpu_indices[0] >= 0)
                 {
@@ -1512,12 +1551,12 @@ namespace colmap
 #else  // COLMAP_CUDA_ENABLED
                 matcher->sift_match_gpu_.SetLanguage(SiftMatchGPU::SIFTMATCH_GLSL);
 #endif // COLMAP_CUDA_ENABLED
-
+       // 验证GPU上下文是否有效。如果无效（返回0），则函数返回nullptr，表示无法创建匹配器。
                 if (matcher->sift_match_gpu_.VerifyContextGL() == 0)
                 {
                     return nullptr;
                 }
-
+                // 尝试为sift_match_gpu_分配所需的内存。如果分配失败（可能是因为GPU内存不足），则记录一个错误并返回nullptr
                 if (!matcher->sift_match_gpu_.Allocate(options.max_num_matches,
                                                        options.cross_check))
                 {
@@ -1528,6 +1567,7 @@ namespace colmap
                     return nullptr;
                 }
 
+// 如果没有定义COLMAP_CUDA_ENABLED，代码还会检查OpenGL版本的SiftGPU是否支持请求的最大匹配数。如果不支持，它会记录一个警告。
 #if !defined(COLMAP_CUDA_ENABLED)
                 if (matcher->sift_match_gpu_.GetMaxSift() < options.max_num_matches)
                 {
@@ -1538,7 +1578,7 @@ namespace colmap
                         matcher->sift_match_gpu_.GetMaxSift());
                 }
 #endif // COLMAP_CUDA_ENABLED
-
+       // 最后，代码设置sift_match_gpu_的gpu_index成员，并检查sift_match_gpu_mutexes_映射中是否已经有一个与该GPU索引对应的互斥锁。如果没有，它会添加一个。
                 matcher->sift_match_gpu_.gpu_index = gpu_indices[0];
                 if (sift_match_gpu_mutexes_.count(gpu_indices[0]) == 0)
                 {
@@ -1548,11 +1588,13 @@ namespace colmap
 
                 return matcher;
             }
+            // 这个Create函数的目的是以线程安全的方式创建一个SiftGPUFeatureMatcher实例，并确保它正确地初始化了其内部的SiftGPU和SiftMatchGPU对象，以便进行后续的特征匹配操作。
 
             void Match(const Image &image1,
                        const Image &image2,
                        FeatureMatches *matches) override
             {
+                // 参数有效性检查
                 THROW_CHECK_NOTNULL(matches);
                 THROW_CHECK_NE(image1.image_id, kInvalidImageId);
                 THROW_CHECK_NE(image2.image_id, kInvalidImageId);
@@ -1560,12 +1602,12 @@ namespace colmap
                 THROW_CHECK_NOTNULL(image2.descriptors);
                 THROW_CHECK_EQ(image1.descriptors->cols(), 128);
                 THROW_CHECK_EQ(image2.descriptors->cols(), 128);
-
+                // 清空matchs中的旧数据
                 matches->clear();
 
                 std::lock_guard<std::mutex> lock(
-                    *sift_match_gpu_mutexes_[sift_match_gpu_.gpu_index]);
-
+                    *sift_match_gpu_mutexes_[sift_match_gpu_.gpu_index]); // 使用互斥锁确保在同一GPU上不会同时进行多个匹配操作
+                // 如果之前的图像ID无效、之前是引导匹配或之前的图像ID与当前图像ID不匹配，则会设置新的描述符。
                 if (prev_image_id1_ == kInvalidImageId || prev_is_guided_ ||
                     prev_image_id1_ != image1.image_id)
                 {
@@ -1584,10 +1626,10 @@ namespace colmap
                     prev_image_id2_ = image2.image_id;
                 }
 
-                prev_is_guided_ = false;
+                prev_is_guided_ = false; // 表示当前不是引导匹配
 
                 matches->resize(static_cast<size_t>(options_.max_num_matches));
-
+                // 调用SiftGPU的GetSiftMatch函数来执行实际的特征匹配
                 const int num_matches = sift_match_gpu_.GetSiftMatch(
                     options_.max_num_matches,
                     reinterpret_cast<uint32_t(*)[2]>(matches->data()),
@@ -1595,21 +1637,23 @@ namespace colmap
                     static_cast<float>(options_.max_ratio),
                     options_.cross_check);
 
-                if (num_matches < 0)
+                if (num_matches < 0) // 若匹配数小于0 表示匹配失败，则清空匹配结果
                 {
                     LOG(ERROR) << "Feature matching failed. This is probably caused by "
                                   "insufficient GPU memory. Consider reducing the maximum "
                                   "number of features and/or matches.";
                     matches->clear();
                 }
-                else
+                else // 否则检查返回的匹配数是否小于或等于预分配的内存大小，并调整matches的大小以匹配实际的匹配数。
                 {
                     THROW_CHECK_LE(num_matches, matches->size());
                     matches->resize(num_matches);
                 }
             }
+            // 这个Match函数实现了在GPU上使用SiftGPU库匹配两个图像的特征点的功能。它首先检查传入的参数是否有效，然后确保在同一GPU上不会同时进行多个匹配操作。
+            // 接着，它为两个图像设置描述符（如果需要的话），并执行实际的特征匹配。最后，它处理匹配结果，确保matches中只包含有效的匹配项。
 
-            void MatchGuided(const double max_error,
+            void MatchGuided(const double max_error, // 最大允许误差
                              const Image &image1,
                              const Image &image2,
                              TwoViewGeometry *two_view_geometry) override
@@ -1638,22 +1682,26 @@ namespace colmap
                 std::lock_guard<std::mutex> lock(
                     *sift_match_gpu_mutexes_[sift_match_gpu_.gpu_index]);
 
-                constexpr size_t kFeatureShapeNumElems = 4;
-
+                constexpr size_t kFeatureShapeNumElems = 4; // 特征形状的元素个数
+                // 检查prev_image_id1_是否是无效ID、是否不是引导匹配，或者是否与当前image1的ID不同。
                 if (prev_image_id1_ == kInvalidImageId || !prev_is_guided_ ||
                     prev_image_id1_ != image1.image_id)
                 {
+                    //// 如果image1的描述符数量超过了GPU上SIFT匹配器的最大匹配数量，则发出警告。
                     WarnIfMaxNumMatchesReachedGPU(*image1.descriptors);
-                    const size_t kIndex = 0;
+                    const size_t kIndex = 0; // 表示这是第一个图像
+                                             // 为GPU上的SIFT匹配器设置image1的描述符数据。
                     sift_match_gpu_.SetDescriptors(
                         kIndex, image1.descriptors->rows(), image1.descriptors->data());
+                    // 为GPU上的SIFT匹配器设置image1的描述符数据。
                     sift_match_gpu_.SetFeautreLocation(
                         kIndex,
                         reinterpret_cast<const float *>(image1.keypoints->data()),
                         kFeatureShapeNumElems);
+                    // 更新pre_image_id1
                     prev_image_id1_ = image1.image_id;
                 }
-
+                // 对image2的处理类似于image1
                 if (prev_image_id2_ == kInvalidImageId || !prev_is_guided_ ||
                     prev_image_id2_ != image2.image_id)
                 {
@@ -1670,16 +1718,19 @@ namespace colmap
 
                 prev_is_guided_ = true;
 
-                Eigen::Matrix<float, 3, 3, Eigen::RowMajor> F;
+                Eigen::Matrix<float, 3, 3, Eigen::RowMajor> F; // 定义两个3*3行主序浮点矩阵
                 Eigen::Matrix<float, 3, 3, Eigen::RowMajor> H;
                 float *F_ptr = nullptr;
                 float *H_ptr = nullptr;
                 if (two_view_geometry->config == TwoViewGeometry::CALIBRATED ||
-                    two_view_geometry->config == TwoViewGeometry::UNCALIBRATED)
+                    two_view_geometry->config == TwoViewGeometry::UNCALIBRATED) // 判断配置类型
                 {
+                    // 如果是CALIBRATED或UNCALIBRATED类型，将two_view_geometry中的F矩阵转换为浮点类型并赋值给F
                     F = two_view_geometry->F.cast<float>();
                     F_ptr = F.data();
                 }
+                // 如果是PLANAR、PANORAMIC或PLANAR_OR_PANORAMIC类型，将two_view_geometry中的H矩阵转换为浮点类型并赋值给H
+                H = two_view_geometry->H.cast<float>();
                 else if (two_view_geometry->config == TwoViewGeometry::PLANAR ||
                          two_view_geometry->config == TwoViewGeometry::PANORAMIC ||
                          two_view_geometry->config ==
@@ -1688,18 +1739,19 @@ namespace colmap
                     H = two_view_geometry->H.cast<float>();
                     H_ptr = H.data();
                 }
+                // 若配置不符合以上任何一种 直接返回
                 else
                 {
                     return;
                 }
-
+                // 检查F_ptr和H_ptr至少有一个不为nullptr，否则抛出异常
                 THROW_CHECK(F_ptr != nullptr || H_ptr != nullptr);
 
                 two_view_geometry->inlier_matches.resize(
                     static_cast<size_t>(options_.max_num_matches));
-
+                // 计算最大残差并转化为浮点数
                 const float max_residual = static_cast<float>(max_error * max_error);
-
+                // 调用GPU上的SIFT匹配器进行引导匹配，获取匹配结果数量
                 const int num_matches = sift_match_gpu_.GetGuidedSiftMatch(
                     options_.max_num_matches,
                     reinterpret_cast<uint32_t(*)[2]>(
@@ -1712,7 +1764,7 @@ namespace colmap
                     max_residual,
                     options_.cross_check);
 
-                if (num_matches < 0)
+                if (num_matches < 0) // 检查匹配结果数量，如果小于0，说明匹配失败，记录错误信息并清空匹配结果
                 {
                     LOG(ERROR) << "Feature matching failed. This is probably caused by "
                                   "insufficient GPU memory. Consider reducing the maximum "
@@ -1721,10 +1773,14 @@ namespace colmap
                 }
                 else
                 {
+                    // 如果匹配成功，检查匹配结果数量是否超过inlier_matches的大小，抛出异常
                     THROW_CHECK_LE(num_matches, two_view_geometry->inlier_matches.size());
+                    // 调整inlier_matches的大小为实际的匹配结果数量
                     two_view_geometry->inlier_matches.resize(num_matches);
                 }
             }
+            // MatchGuided函数是一个复杂而高效的函数，它充分利用了GPU的并行处理能力来加速SIFT特征匹配过程。
+            // 通过详细的参数检查、线程安全控制、GPU数据设置、匹配配置以及结果处理流程，该函数能够准确地找到两个图像之间的匹配特征点，并将这些信息存储在双视图几何对象中供后续使用。
 
         private:
             void WarnIfMaxNumMatchesReachedGPU(const FeatureDescriptors &descriptors)
@@ -1738,6 +1794,8 @@ namespace colmap
                         sift_match_gpu_.GetMaxSift());
                 }
             }
+            // 检查传入的特征点数量（descriptors.rows()）是否超过了GPU上SIFT匹配的最大数量（sift_match_gpu_.GetMaxSift()）。
+            // 如果超过了，就记录一条警告日志，提示用户特征点数量被限制了，并建议增加最大匹配数量。
 
             const SiftMatchingOptions options_;
             SiftMatchGPU sift_match_gpu_;
@@ -1755,30 +1813,32 @@ namespace colmap
         if (options.use_gpu)
         {
 #if defined(COLMAP_GPU_ENABLED)
+            // 如果定义了COLMAP_GPU_ENABLED，则创建SIFT GPU特征匹配器
             LOG(INFO) << "Creating SIFT GPU feature matcher";
             return SiftGPUFeatureMatcher::Create(options);
-#else
+#else  // 如果没有定义COLMAP_GPU_ENABLED，则返回nullptr
             return nullptr;
 #endif // COLMAP_GPU_ENABLED
         }
         else
         {
+            // 如果没有定义COLMAP_GPU_ENABLED，则创建SIFT CPU特征匹配器
             LOG(INFO) << "Creating SIFT CPU feature matcher";
             return SiftCPUFeatureMatcher::Create(options);
         }
     }
+ /*
+     从文本文件中加载SIFT特征。
+     文件具备以下特征：
+     1. 第一行包含两个整数：特征点的数量和描述符的维度（维度必须为128）
+     2. 后面的每一行包含四个整数：x坐标, y坐标, 尺度 scale, 方向 orientation
 
-/*
-    从文本文件中加载SIFT特征。
-    文件具备以下特征：
-    1. 第一行包含两个整数：特征点的数量和描述符的维度（维度必须为128）
-    2. 后面的每一行包含四个整数：x坐标, y坐标, 尺度 scale, 方向 orientation
+     参数：
+     path : 文件路径
+     keypoints : 存储加载好的特征点
+     descriptors ：存储加载好的描述符
+ */
 
-    参数：
-    path : 文件路径
-    keypoints : 存储加载好的特征点
-    descriptors ：存储加载好的描述符
-*/
     void LoadSiftFeaturesFromTextFile(const std::string &path,
                                       FeatureKeypoints *keypoints,
                                       FeatureDescriptors *descriptors)
@@ -1794,19 +1854,15 @@ namespace colmap
 
         std::getline(file, line);
         std::stringstream header_line_stream(line);
-
-        // 解析特征点数量
+        //解析特征点数量
         std::getline(header_line_stream >> std::ws, item, ' ');
         const point2D_t num_features = std::stoul(item);
-
-        // 解析描述符维度
+        //解析描述符维度
         std::getline(header_line_stream >> std::ws, item, ' ');
         const size_t dim = std::stoul(item);
-
-        // 检查描述符维度是否为128
+       //检查描述符维度是否为128
         THROW_CHECK_EQ(dim, 128) << "SIFT features must have 128 dimensions";
-
-        // 调整 keypoints 和 descriptors 的大小以容纳所有特征
+       //调整关键点和描述符的容量以容纳所有特征
         keypoints->resize(num_features);
         descriptors->resize(num_features, dim);
 
@@ -1814,37 +1870,33 @@ namespace colmap
         {
             std::getline(file, line);
             std::stringstream feature_line_stream(line);
-
-            // 解析x坐标
+            //解析x坐标
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float x = std::stold(item);
-
-            // 解析y坐标
+            //解析y坐标
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float y = std::stold(item);
-
-            // 解析尺度 scale
+            //解析尺度scale
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float scale = std::stold(item);
-
-            // 解析方向 orientation
+            //解析方向
             std::getline(feature_line_stream >> std::ws, item, ' ');
             const float orientation = std::stold(item);
-
-            // 存储特征点信息
+            //储存特征点信息
             (*keypoints)[i] = FeatureKeypoint(x, y, scale, orientation);
 
-            // Descriptor(128维)
+            // Descriptor
             for (size_t j = 0; j < dim; ++j)
             {
                 std::getline(feature_line_stream >> std::ws, item, ' ');
                 const float value = std::stod(item);
-                // 检查描述符值是否在合法范围内（0 到 255）
+                //检查描述符值是否在合法范围内（0到255）
                 THROW_CHECK_GE(value, 0);
                 THROW_CHECK_LE(value, 255);
                 (*descriptors)(i, j) = TruncateCast<float, uint8_t>(value);
             }
         }
+        // 这个函数LoadSiftFeaturesFromTextFile的主要功能是从一个文本文件中加载SIFT（尺度不变特征变换）特征的关键点和描述符。
     }
 
 } //  na
