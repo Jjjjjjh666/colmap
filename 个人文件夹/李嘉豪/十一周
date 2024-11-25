@@ -1,0 +1,8 @@
+第十一周完成了automatic_reconstrution头文件和源文件的注释，
+头文件主要定义了一个AutomaticReconstructionController类，用于自动重建相关的控制操作。
+它包含了各种配置选项的定义（通过Options结构体），并且继承自Thread类，可能会在不同的线程中执行如特征提取、特征匹配、稀疏映射和密集映射等一系列与自动重建场景相关的操作。
+具体的功能实现还需要查看各个成员函数（如RunFeatureExtraction等）以及相关类（如Thread、OptionManager、ReconstructionManager等）的具体定义
+源文件实现了AutomaticReconstructionController类的各个成员函数，用于完成自动重建的一系列操作，
+包括初始化配置选项、根据不同阶段（如特征提取、特征匹配、稀疏映射、密集映射等）执行相应的具体操作，
+并在操作过程中进行一些必要的检查和资源管理（如线程的启动、等待、停止以及相关目录和文件的创建、读取、写入等）。
+具体功能依赖于所调用的各个函数（如CreateFeatureExtractorController、CreateExhaustiveFeatureMatcher等）以及相关类（如IncrementalPipeline、COLMAPUndistorter等）的具体实现
