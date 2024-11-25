@@ -57,6 +57,9 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
    //并使用特征描述符矩阵和指定的参数（这里使用了flann::KDTreeIndexParams，参数为kNumTreesInForest，一个常量表示在构建 KD 树时的树的数量）来初始化这个索引。
     index_->buildIndex(); //构建特征描述符索引
   }
+//Build函数整体是对传入的特征描述符数据进行验证和预处理，再使用flann库来构建出对应的索引结构
+//KD树（多维二叉树数据结构）详解：https://blog.csdn.net/Galaxy_yr/article/details/89285069?utm_medium=distribute.pc_relevant.none-task-blog-baidujs_utm_term-1&spm=1001.2101.3001.4242
+
 
   void Search(int num_neighbors,
               const FeatureDescriptors& query_descriptors,
@@ -96,7 +99,7 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
    //以及用于存储 L2 距离的std::vector<float>和flann::Matrix<float>类型的对象l2_dist_matrix。
     index_->knnSearch(query_matrix,
                       indices_matrix,
-                      l2_dist_matrix,
+                      l2_dist_matrix,  //用于存储对应近邻的L2距离矩阵
                       num_eff_neighbors,
                       flann::SearchParams(kNumLeavesToVisit));
    //knn算法：当预测一个新的值x的时候，根据它距离最近的K个点是什么类别来判断x属于哪个类别。
@@ -109,6 +112,8 @@ class FlannFeatureDescriptorIndex : public FeatureDescriptorIndex {
     }
    // 遍历查询索引和近邻索引，将 L2 距离向量中的值转换为整数，并存储在 L2 距离矩阵中。
   }
+//这个Search函数围绕已有的特征描述符索引，对传入的查询特征描述符进行全面的近邻搜索操作
+//最终将搜索得到的近邻索引和对应的L2距离结果以合适的格式整理并存储在相应的矩阵中
 
  private:
   // Tuned to produce similar results to brute-force matching. If speed is
@@ -129,7 +134,7 @@ std::unique_ptr<FeatureDescriptorIndex> FeatureDescriptorIndex::Create() {
 }
 
 }  // namespace colmap
-//这段代码实现了一个基于 FLANN 算法的特征描述符索引和搜索功能。
+//这段代码实现了一个基于 FLANN 算法的特征描述符索引的创建和搜索功能。
 //FLANN是一个对大数据集和高维特征进行最近邻搜索的算法的集合，包括随机k-d树算法，优先搜索k-means树算法和层次聚类数算法
 
  
