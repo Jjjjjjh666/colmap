@@ -52,11 +52,11 @@ std::vector<std::pair<image_t, image_t>> ReadImagePairsText(
 
   std::string line;  //存储从文件中读取的每一行内容
   std::vector<std::pair<image_t, image_t>> image_pairs;  //存储有效的图像对
-  std::unordered_set<image_pair_t> image_pairs_set;  //跟踪已处理过的图像对，避免重复添加相同的图像对
-  while (std::getline(file, line)) {
-    StringTrim(&line);  //除去字符串两段的空白字符或不需要的字符等
+  std::unordered_set<image_pair_t> image_pairs_set;  //跟踪已处理过的图像对，避免重复添加相同的图像对，储存唯一的图像对id
+  while (std::getline(file, line)) {   //逐行读取文件到line中
+    StringTrim(&line);  //除去字符串中多余的空白字符，确保没有无效空格的干扰
 
-    if (line.empty() || line[0] == '#') {
+    if (line.empty() || line[0] == '#') {  //跳过空行和注释行
       continue;
     }
 
@@ -65,14 +65,14 @@ std::vector<std::pair<image_t, image_t>> ReadImagePairsText(
     std::string image_name1;
     std::string image_name2;
 
-    std::getline(line_stream, image_name1, ' ');  //声明两个string变量并通过getline以空格为分隔符从linestream中提取
-    StringTrim(&image_name1);                     //分别代表两个图像的名称，并对他们进行stringtrim处理 
+    std::getline(line_stream, image_name1, ' ');  //声明两个string变量并通过getline以空格为分隔符从linestream中提取两个图像名称
+    StringTrim(&image_name1);                     //分别代表两个图像的名称，并对他们进行stringtrim处理，去除图像名称中的多余空格符
     std::getline(line_stream, image_name2, ' ');
     StringTrim(&image_name2);
 
-    if (image_name_to_image_id.count(image_name1) == 0) {
-      LOG(ERROR) << "Image " << image_name1 << " does not exist.";
-      continue;
+    if (image_name_to_image_id.count(image_name1) == 0) {    //检查图像名称是否在映射表中，返回0表示图像不存在
+      LOG(ERROR) << "Image " << image_name1 << " does not exist.";  //输出错误日志
+      continue;  //跳过该行前往下一行
     }
     if (image_name_to_image_id.count(image_name2) == 0) {
       LOG(ERROR) << "Image " << image_name2 << " does not exist.";
@@ -88,11 +88,12 @@ std::vector<std::pair<image_t, image_t>> ReadImagePairsText(
     const bool image_pair_exists = image_pairs_set.insert(image_pair).second;  //将生成的图像对尝试插入到image_pairs_set中，若插入成功
     //若插入成功，即先前没有处理过，则将其添加到image_pairs向量中                                                                          
     if (image_pair_exists) {
-      image_pairs.emplace_back(image_id1, image_id2);
+      image_pairs.emplace_back(image_id1, image_id2);  //储存有效的图像对 加入image_pairs中
     }
   }
   return image_pairs;
 }
+//该函数实现从用户文件中读取图像信息并将其进行筛选处理，转化为相应的图像ID生成图像对进行存储
 
 }  // namespace
 
@@ -165,6 +166,8 @@ std::vector<std::pair<image_t, image_t>> PairGenerator::AllPairs() {
   }
   return image_pairs;
 }
+//该函数整体上实现了对容器的初始化，通过next函数生成一批图像对并存储在image_pairs_block中，借助移动语句
+//将图像对高效地插入到image_pairs中，图像对生成结束后，循环结束并返回全部图像对
 
 ExhaustivePairGenerator::ExhaustivePairGenerator(
     const ExhaustiveMatchingOptions& options,
@@ -223,11 +226,11 @@ std::vector<std::pair<image_t, image_t>> ExhaustivePairGenerator::Next() {
 //其中start_idx1_ / block_size_ + 1和start_idx2_ / block_size_ + 1分别表示当前块在start_idx1_和start_idx2_方向上的索引（从1开始计数）
 
   for (size_t idx1 = start_idx1_; idx1 <= end_idx1; ++idx1) {
-    for (size_t idx2 = start_idx2_; idx2 <= end_idx2; ++idx2) {
+    for (size_t idx2 = start_idx2_; idx2 <= end_idx2; ++idx2) {   //idx1和idx2遍历当前块所有的图像对组合
       const size_t block_id1 = idx1 % block_size_;
-      const size_t block_id2 = idx2 % block_size_;
-      if ((idx1 > idx2 && block_id1 <= block_id2) ||
-          (idx1 < idx2 && block_id1 < block_id2)) {  // Avoid duplicate pairs
+      const size_t block_id2 = idx2 % block_size_;    //计算块内位置，确保块内索引相对位置判断
+      if ((idx1 > idx2 && block_id1 <= block_id2) ||   //避免同一对反向重复
+          (idx1 < idx2 && block_id1 < block_id2)) {  // Avoid duplicate pairs  //确保按照升序生成  
         image_pairs_.emplace_back(image_ids_[idx1], image_ids_[idx2]);
       }
     }
@@ -238,9 +241,11 @@ std::vector<std::pair<image_t, image_t>> ExhaustivePairGenerator::Next() {
     start_idx2_ = 0;
     start_idx1_ += block_size_;
   }
-//更新index2的值，若index2已经超过了idsize，说明当前index1下的所有情况已经得到处理，index2置零，index1+block_size
+//更新index2的值，若index2已经超过了idsize，说明当前index1下的所有情况已经得到处理，index2置零，index1+block_size切换到下一行处理
   return image_pairs_;
 }
+//生成图像对，通过分块方式处理大规模图像集合，同时避免重复组合
+//整体实现逻辑：初始化并清空容器，计算当前接结束索引，嵌套循环生成图像对并避免重复，更新块索引，最后返回当前块的图像对
 
 
 
