@@ -308,8 +308,7 @@ VocabTreePairGenerator::VocabTreePairGenerator(   //使用字典树生成图像�
       options_.num_images_after_verification;
 //将query_options_的各个成员变量设置为options_中相应的参数值
 }
-
-//trie树：
+//初始化一个基于字典树的图像对生成器
 
 VocabTreePairGenerator::VocabTreePairGenerator(
     const VocabTreeMatchingOptions& options,
@@ -377,6 +376,8 @@ std::vector<std::pair<image_t, image_t>> VocabTreePairGenerator::Next() {
   ++result_idx_;  //更新结果索引
   return image_pairs_;
 }
+//该函数通过并行查询和检索图像匹配结果，逐步生成图像对并返回，主要功能是利用多线程和队列实现高效的图像检索
+//并将匹配到的图像对返回
 
 void VocabTreePairGenerator::IndexImages(
     const std::vector<image_t>& image_ids) {  //对给定的图像标识符向量中的图像进行索引
@@ -433,6 +434,9 @@ void VocabTreePairGenerator::Query(const image_t image_id) {
 
   THROW_CHECK(queue.Push(std::move(retrieval)));  //入队
 }
+//函数负责对给定图像 image_id 进行特征提取和检索，通过字典树查询算法生成图像匹配结果并将其存入检索队列 queue。
+//该函数利用图像的关键点和描述符，通过字典树查询生成相似图像的匹配分数。
+
 SequentialPairGenerator::SequentialPairGenerator(
     const SequentialMatchingOptions& options, //传入匹配选项
     const std::shared_ptr<FeatureMatcherCache>& cache)  //存储特征匹配的缓存信息
@@ -490,7 +494,7 @@ std::vector<std::pair<image_t, image_t>> SequentialPairGenerator::Next() {
   const auto image_id1 = image_ids_.at(image_idx_);  //获取当前图像ID
   //用于生成当前图像和后续图像的图像对
   for (int i = 0; i < options_.overlap; ++i) {
-    if (options_.quadratic_overlap) {
+    if (options_.quadratic_overlap) {  //若是指数形式重叠
         //通过image_idx_ + (1ull << i)计算下一个图像索引（1ull << i实现了以 2 为底数的指数增长）
       const size_t image_idx_2_quadratic = image_idx_ + (1ull << i);
       //如果该索引在image_ids_范围内，则将由image_id1和新获取的图像 ID 组成的图像对添加到image_pairs_容器中
@@ -516,6 +520,8 @@ std::vector<std::pair<image_t, image_t>> SequentialPairGenerator::Next() {
   ++image_idx_;
   return image_pairs_;
 }
+//函数用于根据顺序遍历策略生成一批图像对。它按照固定或指数增长的步长，从一个图像 ID 开始，与后续的若干图像生成图像对，用于图像匹配任务。
+//支持线性和指数重叠策略，当遍历完所有图像时，可以切换到基于词汇树的图像对生成器继续生成图像对。
 
 std::vector<image_t> SequentialPairGenerator::GetOrderedImageIds() const {  //获取有序的图像ID
   const std::vector<image_t> image_ids = cache_->GetImageIds();  //获取所有图像ID
@@ -540,6 +546,7 @@ std::vector<image_t> SequentialPairGenerator::GetOrderedImageIds() const {  //�
 
   return ordered_image_ids;
 }
+//该函数实现了对图像id的获取存储和根据字典序对其进行排序再添加到容器中返回
 
 SpatialPairGenerator::SpatialPairGenerator(
     const SpatialMatchingOptions& options,
