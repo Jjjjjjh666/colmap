@@ -111,13 +111,13 @@ namespace colmap
             const FeatureDescriptors &vlfeat_descriptors)
         { // 将输入的基于VLFeat的特征描述符转化为UBC的特征描述符
             FeatureDescriptors ubc_descriptors(vlfeat_descriptors.rows(),
-                                               vlfeat_descriptors.cols());
-            const std::array<int, 8> q{{0, 7, 6, 5, 4, 3, 2, 1}};
-            for (FeatureDescriptors::Index n = 0; n < vlfeat_descriptors.rows(); ++n)
+                                               vlfeat_descriptors.cols());  //创建了一个与输入矩阵大小相同的空矩阵，用于存储转换后的结果
+            const std::array<int, 8> q{{0, 7, 6, 5, 4, 3, 2, 1}};//用于交换位置的索引映射表，描述符中的8个子维度被以反转顺序重新排列
+            for (FeatureDescriptors::Index n = 0; n < vlfeat_descriptors.rows(); ++n)  //遍历每个特征点的描述符
             {
                 for (int i = 0; i < 4; ++i)
                 {
-                    for (int j = 0; j < 4; ++j)
+                    for (int j = 0; j < 4; ++j)  //对描述符的每个4*4小块进行重新排列
                     {
                         for (int k = 0; k < 8; ++k)
                         {
@@ -131,6 +131,9 @@ namespace colmap
             }
             return ubc_descriptors;
         }
+     //代码的主要功能是将输入的基于 VLFeat 格式的特征描述符转换为 UBC (University of British Columbia) 格式的特征描述符。
+     //通过q数组的反转，完成子维度的重新排列，实现格式转换
+
         FeatureDescriptors
 
             class SiftCPUFeatureExtractor : public FeatureExtractor
