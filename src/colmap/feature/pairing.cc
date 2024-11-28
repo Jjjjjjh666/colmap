@@ -549,8 +549,8 @@ std::vector<image_t> SequentialPairGenerator::GetOrderedImageIds() const {  //�
 //该函数实现了对图像id的获取存储和根据字典序对其进行排序再添加到容器中返回
 
 SpatialPairGenerator::SpatialPairGenerator(
-    const SpatialMatchingOptions& options,
-    const std::shared_ptr<FeatureMatcherCache>& cache)
+    const SpatialMatchingOptions& options,  //匹配选项对象，包含空间图像配对的参数等
+    const std::shared_ptr<FeatureMatcherCache>& cache)  //智能指针，用于缓存图像特征匹配的数据
     : options_(options), image_ids_(THROW_CHECK_NOTNULL(cache)->GetImageIds()) {
   LOG(INFO) << "Generating spatial image pairs...";
   THROW_CHECK(options.Check());  //检查空间匹配选项是否有效
@@ -560,7 +560,7 @@ SpatialPairGenerator::SpatialPairGenerator(
   LOG(INFO) << "Indexing images...";
 
   Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> position_matrix =
-      ReadPositionPriorData(*cache);  //从缓存中读取图像位置的先验数据
+      ReadPositionPriorData(*cache);  //从缓存中读取图像位置的先验数据，存入矩阵中，每一行表示一个图像的位置
   const size_t num_positions = position_idxs_.size();   //获取位置索引的大小
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
@@ -572,13 +572,13 @@ SpatialPairGenerator::SpatialPairGenerator(
   timer.Restart();
   LOG(INFO) << "Building search index...";
   //使用position_matrix的数据创建一个flann::Matrix<float>类型的positions对象
-  //FLANN库
+  //将位置矩阵包装成flann兼容矩阵
   flann::Matrix<float> positions(
       position_matrix.data(), num_positions, position_matrix.cols());
 
-  flann::LinearIndexParams index_params;  //创建索引参数
+  flann::LinearIndexParams index_params;  //线性索引参数
   flann::LinearIndex<flann::L2<float>> search_index(index_params);   //创建搜索参数对象
-  search_index.buildIndex(positions);  
+  search_index.buildIndex(positions);    //根据位置创建线性搜索索引
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
 
@@ -610,6 +610,8 @@ SpatialPairGenerator::SpatialPairGenerator(
 
   LOG(INFO) << StringPrintf(" in %.3fs", timer.ElapsedSeconds());
 }
+//该函数是一个构造函数，用于生成基于图像位置数据的空间图像对
+//通过读取图像位置的先验数据，使用flann库进行近邻搜索，构建空间上可能相关的图像对集合
 
 SpatialPairGenerator::SpatialPairGenerator(
     const SpatialMatchingOptions& options,
@@ -713,6 +715,7 @@ SpatialPairGenerator::ReadPositionPriorData(FeatureMatcherCache& cache) {   //�
   }
   return position_matrix;
 }
+//问
 //这个函数的主要功能是从FeatureMatcherCache中读取图像的位置先验数据，
 // 并将其转换为统一的笛卡尔坐标形式存储在position_matrix中。
 
@@ -722,6 +725,7 @@ TransitivePairGenerator::TransitivePairGenerator(
     : options_(options), cache_(cache) {
   THROW_CHECK(options.Check());
 }
+//接收匹配参数和特征匹配缓存，使用其数据初始化变量options和cache，检查options的参数合法性
 
 TransitivePairGenerator::TransitivePairGenerator(
     const TransitiveMatchingOptions& options,
@@ -730,6 +734,9 @@ TransitivePairGenerator::TransitivePairGenerator(
           options,
           std::make_shared<FeatureMatcherCache>(
               options.CacheSize(), THROW_CHECK_NOTNULL(database))) {}
+//接收 TransitiveMatchingOptions 和 Database 对象。
+//使用 std::make_shared<FeatureMatcherCache> 创建缓存，将缓存的大小设置为 options.CacheSize()，并确保 database 非空。
+//调用第一个构造函数进行初始化。
 
 void TransitivePairGenerator::Reset() {
   current_iteration_ = 0;
@@ -744,11 +751,11 @@ bool TransitivePairGenerator::HasFinished() const {
 
 std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
   if (!image_pairs_.empty()) {  //若image_pairs_容器不为空，表示还有剩余图像对需要处理
-    current_batch_idx_++;
+    current_batch_idx_++;  //增加当前批次索引
     std::vector<std::pair<image_t, image_t>> batch;//创建一个空的std::vector<std::pair<image_t, image_t>>类型的batch容器，用于存储当前批次的图像对。
     while (!image_pairs_.empty() &&
            static_cast<int>(batch.size()) < options_.batch_size) {
-      batch.push_back(image_pairs_.back());  //将图像对添加到batch容器中
+      batch.push_back(image_pairs_.back());  //将图像对按批次大小填充到batch中，直到批次满或图像对耗尽
       image_pairs_.pop_back();
     }
     LOG(INFO) << StringPrintf(
@@ -762,7 +769,7 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
 
   current_batch_idx_ = 0;
   current_num_batches_ = 0;
-  current_iteration_++;
+  current_iteration_++;   //初始化新一轮的迭代参数
 
   LOG(INFO) << StringPrintf(
       "Iteration [%d/%d]", current_iteration_, options_.num_iterations);
@@ -777,7 +784,7 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
                                                &existing_num_inliers);
       });
   //建立图像间的邻接关系
-  std::unordered_map<image_t, std::vector<image_t>> adjacency;
+  std::unordered_map<image_t, std::vector<image_t>> adjacency;  //邻接表，记录每个图像与其直接相邻图像的关系
   for (const auto& image_pair : existing_image_pairs) {
    //将图像对中的第一个图像 ID 作为键，将第二个图像 ID 添加到对应的值向量中，表示这两个图像是相邻的。
    // 同样，将第二个图像 ID 作为键，将第一个图像 ID 添加到对应的值向量中
@@ -787,21 +794,21 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
         Database::ImagePairToPairId(image_pair.first, image_pair.second));
   }
 //基于现有的邻接关系生成新的图像对
-  for (const auto& image : adjacency) {
+  for (const auto& image : adjacency) {  //第一层，遍历每个图像image_id1
     const auto image_id1 = image.first;
-    for (const auto& image_id2 : image.second) {
-      const auto it = adjacency.find(image_id2);
+    for (const auto& image_id2 : image.second) {   //第二层，遍历与image_id1相邻的image_id2
+      const auto it = adjacency.find(image_id2);  //从image_id2的邻接表中查找第三个图像image_id3，构建（id1，id3）作为新的图像对
       if (it == adjacency.end()) {
         continue;
       }
       for (const auto& image_id3 : it->second) {
-        if (image_id1 == image_id3) {
+        if (image_id1 == image_id3) {  //排除image_id1==image_id3的情况
           continue;
         }
         const auto image_pair_id =
             Database::ImagePairToPairId(image_id1, image_id3);
-        if (image_pair_ids_.count(image_pair_id) != 0) {
-          continue;
+        if (image_pair_ids_.count(image_pair_id) != 0) {  //避免生成已存在的图像对，利用 image_pair_ids_ 进行判重。
+          continue;  
         }
         image_pairs_.emplace_back(image_id1, image_id3);
         image_pair_ids_.insert(image_pair_id);
@@ -814,23 +821,26 @@ std::vector<std::pair<image_t, image_t>> TransitivePairGenerator::Next() {
 
   return Next();
 }
+//该函数旨在逐步生成传递性图像对的下一批次
+//它首先检查是否有剩余未处理的图像对，如果有，则按批次返回；如果没有剩余图像对，且当前迭代未完成，则基于已有图像对的邻接关系生成新的传递性图像对。
 
-ImportedPairGenerator::ImportedPairGenerator(
+
+ImportedPairGenerator::ImportedPairGenerator(  //该类负责导入外部图像对
     const ImagePairsMatchingOptions& options,
     const std::shared_ptr<FeatureMatcherCache>& cache)
     : options_(options) {
   THROW_CHECK(options.Check());
 
   LOG(INFO) << "Importing image pairs...";
-  const std::vector<image_t> image_ids = cache->GetImageIds();
-  std::unordered_map<std::string, image_t> image_name_to_image_id;
+  const std::vector<image_t> image_ids = cache->GetImageIds();  //从缓存中获取图像id列表
+  std::unordered_map<std::string, image_t> image_name_to_image_id;//将图像的名称映射到对应的图像ID
   image_name_to_image_id.reserve(image_ids.size());
-  for (const auto image_id : image_ids) {
-    const auto& image = cache->GetImage(image_id);
-    image_name_to_image_id.emplace(image.Name(), image_id);
+  for (const auto image_id : image_ids) {  //循环遍历每个图像ID
+    const auto& image = cache->GetImage(image_id);   //从缓存中获取对应的图像对象
+    image_name_to_image_id.emplace(image.Name(), image_id);  //将图像名称和ID插入unordered_map，避免重复查找和储存
   }
   image_pairs_ =
-      ReadImagePairsText(options_.match_list_path, image_name_to_image_id);
+      ReadImagePairsText(options_.match_list_path, image_name_to_image_id);  //读取指定路径中的图像对文件存储到导入的图像对
   block_image_pairs_.reserve(options_.block_size);
 }
 
@@ -868,6 +878,11 @@ std::vector<std::pair<image_t, image_t>> ImportedPairGenerator::Next() {
   pair_idx_ += options_.block_size;
   return block_image_pairs_;
 }
+//函数用于 按块返回导入的图像对。
+//它从预先导入的图像对列表中，逐批次（块）提取一组图像对进行处理，直到所有图像对都被处理完。
+//每次调用该函数都会返回下一批图像对，适用于分块执行特征匹配等操作。
+
+
 
 }  // namespace colmap
 
