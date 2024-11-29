@@ -36,17 +36,18 @@ FeatureMatcherCache::FeatureMatcherCache(
     : cache_size_(cache_size),  //初始化为传入的缓存大小
       database_(THROW_CHECK_NOTNULL(database)),  //初始化为传入的数据库指针并进行非空检查
       descriptor_index_cache_(cache_size_, [this](const image_t image_id) {  //接收缓存大小和lambda表达式作为参数
+          //lambda表达式：当缓存缺失时，调用该函数以生成所需要的数据
         auto descriptors = GetDescriptors(image_id);  //获取描述符
-        auto index = FeatureDescriptorIndex::Create();
+        auto index = FeatureDescriptorIndex::Create();  //获取描述符索引对象
         index->Build(*descriptors);  //创建一个FeatureDescriptorIndex对象并调用Build方法构建索引。
         return index;
       }) {
-  keypoints_cache_ =
-      std::make_unique<ThreadSafeLRUCache<image_t, FeatureKeypoints>>(
-          cache_size_, [this](const image_t image_id) {
-            std::lock_guard<std::mutex> lock(database_mutex_);
-            return std::make_shared<FeatureKeypoints>(
-                database_->ReadKeypoints(image_id));
+  keypoints_cache_ =   //存储图像关键点信息
+      std::make_unique<ThreadSafeLRUCache<image_t, FeatureKeypoints>>(   
+          cache_size_, [this](const image_t image_id) {   //lambda表达式，缓存未命中时执行操作
+            std::lock_guard<std::mutex> lock(database_mutex_);  //加锁，保护database的操作线程安全
+            return std::make_shared<FeatureKeypoints>(    //智能指针，返回包含关键点的对象
+                database_->ReadKeypoints(image_id));  //从数据库中读取相应图像ID的关键点
           });
 
   descriptors_cache_ =
@@ -72,6 +73,7 @@ FeatureMatcherCache::FeatureMatcherCache(
                 database_->ExistsDescriptors(image_id));
           });  //同上
 }  
+//该构造函数实现了对关键点的缓存，对描述符的缓存和对存在性信息的缓存，借助lambda表达式和互斥锁保证线程安全
 
 void FeatureMatcherCache::AccessDatabase(
     const std::function<void(const Database& database)>& func) {
@@ -245,4 +247,7 @@ void FeatureMatcherCache::MaybeLoadPosePriors() {
 }
 //
 
-}  // namespace colmap
+}
+// namespace colmap
+//FeatureMatcherCache 类实现了对图像特征匹配相关数据的高效缓存管理以及安全的数据库操作，
+//方便在多线程环境下对诸如相机、图像、特征匹配、姿态先验等各类数据进行快速获取、检查以及修改等操作

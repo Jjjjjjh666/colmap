@@ -41,6 +41,7 @@ std::vector<Eigen::Vector2d> FeatureKeypointsToPointsVector(
   }
   return points;
 }
+//该函数旨在将特征点转化为一组二维点的向量表示
 
 void L2NormalizeFeatureDescriptors(FeatureDescriptorsFloat* descriptors) {
   descriptors->rowwise().normalize();
@@ -115,4 +116,4 @@ void ExtractTopScaleFeatures(FeatureKeypoints* keypoints,
 }
 
 }  // namespace colmap
-//这段函数整体上对特征点数据进行了一定处理，起到了特征工程的作用
+//这段函数整体上对特征点数据进行了一定处理，如数据类型转换，归一化处理和前n个特征的提取，起到了特征工程的作用
