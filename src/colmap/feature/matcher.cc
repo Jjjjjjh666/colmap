@@ -247,6 +247,7 @@ void FeatureMatcherCache::MaybeLoadPosePriors() {
 }
 //
 
-}  // namespace colmap
+}
+// namespace colmap
 //FeatureMatcherCache 类实现了对图像特征匹配相关数据的高效缓存管理以及安全的数据库操作，
 //方便在多线程环境下对诸如相机、图像、特征匹配、姿态先验等各类数据进行快速获取、检查以及修改等操作
