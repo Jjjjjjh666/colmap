@@ -40,6 +40,7 @@
 
 namespace colmap {
 
+//RANSACOptions 是一个用于配置 RANSAC 算法的结构体
 struct RANSACOptions {
   // Maximum error for a sample to be considered as an inlier. Note that
   // the residual of an estimator corresponds to a squared error.

@@ -41,6 +41,8 @@ namespace colmap {
 
 // 3D similarity transform with 7 degrees of freedom.
 // Transforms point x from a to b as: x_in_b = scale * R * x_in_a + t.
+//Sim3d 是一个表示三维相似变换的结构体。相似变换包括缩放、旋转和平移。
+//这在计算机视觉中用于对齐三维重建或图像的坐标系
 struct Sim3d {
   double scale = 1;
   Eigen::Quaterniond rotation = Eigen::Quaterniond::Identity();
