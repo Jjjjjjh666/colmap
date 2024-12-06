@@ -20,6 +20,7 @@ bool AlignReconstructionToLocations(
     const RANSACOptions& ransac_options,//RANSAC（随机抽样一致性）是一种稳健估计方法，用于在数据中识别内点和异常值
     Sim3d* tform);
 
+
 //用于对齐两个重建结果(应该是稀疏点云),通过最小化重投影误差来实现。
 //重投影是指将三维空间中的点通过相机模型投影到二维图像平面上
 bool AlignReconstructionsViaReprojections(
