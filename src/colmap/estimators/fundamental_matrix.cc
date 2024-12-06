@@ -48,11 +48,14 @@ void FundamentalMatrixSevenPointEstimator::Estimate(
     const std::vector<X_t>& points1,
     const std::vector<Y_t>& points2,
     std::vector<M_t>* models) {
+
+  // 检查输入: 确保输入点对数量为 7，并且输出指针不为空。
   THROW_CHECK_EQ(points1.size(), 7);
   THROW_CHECK_EQ(points2.size(), 7);
   THROW_CHECK(models != nullptr);
-
   models->clear();
+
+
 
   // Setup system of equations: [points2(i,:), 1]' * F * [points1(i,:), 1]'.
   Eigen::Matrix<double, 9, 7> A;
@@ -106,6 +109,7 @@ void FundamentalMatrixSevenPointEstimator::Estimate(
   const int num_roots =
       FindCubicPolynomialRoots(coeffs(1), coeffs(2), coeffs(3), &roots);
 
+  //生成基础矩阵: 使用求得的根构造基础矩阵(一个矩阵类型的vector)
   models->reserve(num_roots);
   for (int i = 0; i < num_roots; ++i) {
     const Eigen::Matrix<double, 9, 1> F = (f1 * roots[i] + f2).normalized();
@@ -113,6 +117,8 @@ void FundamentalMatrixSevenPointEstimator::Estimate(
   }
 }
 
+//下面只是七点问题的残差算法
+//选择唯一的基础矩阵可能是在更高层次的逻辑中完成的
 void FundamentalMatrixSevenPointEstimator::Residuals(
     const std::vector<X_t>& points1,
     const std::vector<Y_t>& points2,
