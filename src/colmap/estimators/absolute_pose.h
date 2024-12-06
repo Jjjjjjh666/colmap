@@ -160,6 +160,8 @@ class EPNPEstimator {
   bool ComputePose(const std::vector<Eigen::Vector2d>& points2D,
                    const std::vector<Eigen::Vector3d>& points3D,
                    Eigen::Matrix3x4d* cam_from_world);
+                   //通过给定的一组二维图像点和三维世界坐标点来计算相机的位姿。它会采用 EPNP 方法，首先通过线性方法估计出一个初步解，
+                   //然后使用非线性优化（高斯-牛顿法）进一步调整这个解，最终给出相机的位姿。
 
   void ChooseControlPoints();
   bool ComputeBarycentricCoordinates();

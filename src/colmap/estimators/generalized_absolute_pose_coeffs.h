@@ -39,3 +39,5 @@ Eigen::Matrix<double, 9, 1> ComputeDepthsSylvesterCoeffs(
     const Eigen::Matrix<double, 3, 6>& K);
 
 }  // namespace colmap
+
+//目的:计算用于深度估计的 Sylvester 方程的系数
