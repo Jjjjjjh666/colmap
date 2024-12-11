@@ -1,91 +1,62 @@
-// Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-//     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-//       its contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
+//这个文件定义了两个类，用于估计本质矩阵（Essential Matrix），这是计算相机之间相对姿态的关键步骤
+//本质矩阵用于描述两个摄像机之间的相对旋转和平移
+//该文件提供了两种本质矩阵问题的解决方法：5点法和8点法
 #pragma once
 
 #include "colmap/util/eigen_alignment.h"
 #include "colmap/util/types.h"
 
 #include <vector>
-
 #include <Eigen/Core>
 #include <ceres/ceres.h>
 
 namespace colmap {
 
-// Essential matrix estimator from corresponding normalized point pairs.
+// 从对应的标准化点对中估计本质矩阵。
 //
-// This algorithm solves the 5-Point problem based on the following paper:
+// 该算法解决了5点问题，基于以下论文：
 //
 //    D. Nister, An efficient solution to the five-point relative pose problem,
 //    IEEE-T-PAMI, 26(6), 2004.
 //    http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.86.8769
 class EssentialMatrixFivePointEstimator {
  public:
-  typedef Eigen::Vector2d X_t;
+  typedef Eigen::Vector2d X_t;  // 点类型定义
   typedef Eigen::Vector2d Y_t;
-  typedef Eigen::Matrix3d M_t;
+  typedef Eigen::Matrix3d M_t;  // 矩阵类型定义
 
-  // The minimum number of samples needed to estimate a model.
+  // 估计模型所需的最小样本数。
   static const int kMinNumSamples = 5;
 
-  // Estimate up to 10 possible essential matrix solutions from a set of
-  // corresponding points.
+  // 从一组对应点中估计最多10个可能的本质矩阵解。
   //
-  //  The number of corresponding points must be at least 5.
+  // 对应点的数量必须至少为5。
   //
-  // @param points1  First set of corresponding points.
-  // @param points2  Second set of corresponding points.
+  // @param points1  第一组对应点。
+  // @param points2  第二组对应点。
   //
-  // @return         Up to 10 solutions as a vector of 3x3 essential matrices.
+  // @return         最多10个3x3本质矩阵的解。
   static void Estimate(const std::vector<X_t>& points1,
                        const std::vector<Y_t>& points2,
                        std::vector<M_t>* models);
 
-  // Calculate the residuals of a set of corresponding points and a given
-  // essential matrix.
+  // 计算一组对应点和给定本质矩阵的残差。
   //
-  // Residuals are defined as the squared Sampson error.
+  // 残差定义为平方的Sampson误差。
   //
-  // @param points1    First set of corresponding points.
-  // @param points2    Second set of corresponding points.
-  // @param E          3x3 essential matrix.
-  // @param residuals  Output vector of residuals.
+  // @param points1    第一组对应点。
+  // @param points2    第二组对应点。
+  // @param E          3x3本质矩阵。
+  // @param residuals  输出的残差向量。
   static void Residuals(const std::vector<X_t>& points1,
                         const std::vector<Y_t>& points2,
                         const M_t& E,
                         std::vector<double>* residuals);
 };
 
-// Essential matrix estimator from corresponding normalized point pairs.
+// 从对应的标准化点对中估计本质矩阵。
 //
-// This algorithm solves the 8-Point problem based on the following paper:
+// 该算法解决了8点问题，基于以下论文：
 //
 //    Hartley and Zisserman, Multiple View Geometry, algorithm 11.1, page 282.
 class EssentialMatrixEightPointEstimator {
@@ -94,28 +65,27 @@ class EssentialMatrixEightPointEstimator {
   typedef Eigen::Vector2d Y_t;
   typedef Eigen::Matrix3d M_t;
 
-  // The minimum number of samples needed to estimate a model.
+  // 估计模型所需的最小样本数。
   static const int kMinNumSamples = 8;
 
-  // Estimate essential matrix solutions from  set of corresponding points.
+  // 从一组对应点中估计本质矩阵解。
   //
-  // The number of corresponding points must be at least 8.
+  // 对应点的数量必须至少为8。
   //
-  // @param points1  First set of corresponding points.
-  // @param points2  Second set of corresponding points.
+  // @param points1  第一组对应点。
+  // @param points2  第二组对应点。
   static void Estimate(const std::vector<X_t>& points1,
                        const std::vector<Y_t>& points2,
                        std::vector<M_t>* models);
 
-  // Calculate the residuals of a set of corresponding points and a given
-  // essential matrix.
+  // 计算一组对应点和给定本质矩阵的残差。
   //
-  // Residuals are defined as the squared Sampson error.
+  // 残差定义为平方的Sampson误差。
   //
-  // @param points1    First set of corresponding points.
-  // @param points2    Second set of corresponding points.
-  // @param E          3x3 essential matrix.
-  // @param residuals  Output vector of residuals.
+  // @param points1    第一组对应点。
+  // @param points2    第二组对应点。
+  // @param E          3x3本质矩阵。
+  // @param residuals  输出的残差向量。
   static void Residuals(const std::vector<X_t>& points1,
                         const std::vector<Y_t>& points2,
                         const M_t& E,

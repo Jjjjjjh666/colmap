@@ -1,32 +1,3 @@
-// Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-//     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-//       its contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
 #pragma once
 
 #include "colmap/geometry/rigid3.h"
@@ -39,47 +10,44 @@
 
 namespace colmap {
 
-// Covariance estimation for bundle adjustment (or extended) problem.
-// The interface is applicable to all ceres problem extended on top of bundle
-// adjustment. The Schur complement is computed explicitly to eliminate the
-// hessian block for all the 3D points, which is essential to avoid Jacobian
-// rank deficiency for large-scale reconstruction
+// 捆绑调整（或扩展）问题的协方差估计。
+// 该接口适用于所有基于捆绑调整扩展的 Ceres 问题。
+// 显式计算舒尔补以消除所有 3D 点的 Hessian 块，
+// 这是避免大规模重建中雅可比秩亏的关键。
 class BundleAdjustmentCovarianceEstimatorBase {
  public:
-  // Construct with a COLMAP reconstruction
+  // 使用 COLMAP 重建构造
   BundleAdjustmentCovarianceEstimatorBase(ceres::Problem* problem,
                                           Reconstruction* reconstruction);
-  // Construct by specifying pose blocks and point blocks
+  // 通过指定姿态块和点块构造
   BundleAdjustmentCovarianceEstimatorBase(
       ceres::Problem* problem,
       const std::vector<const double*>& pose_blocks,
       const std::vector<const double*>& point_blocks);
   virtual ~BundleAdjustmentCovarianceEstimatorBase() = default;
 
-  // Manually set pose blocks that are interested
+  // 手动设置感兴趣的姿态块
   void SetPoseBlocks(const std::vector<const double*>& pose_blocks);
 
-  // Compute covariance for all parameters (except for 3D points).
-  // Store the full matrix at cov_variables_ and the subblock copy at
-  // cov_poses_;
+  // 计算所有参数的协方差（不包括 3D 点）。
+  // 将完整矩阵存储在 cov_variables_ 中，并将子块副本存储在 cov_poses_ 中；
   virtual bool ComputeFull() = 0;
 
-  // Compute covariance for pose paramters.
-  // Stored at cov_poses_;
+  // 计算姿态参数的协方差。
+  // 存储在 cov_poses_ 中；
   virtual bool Compute() = 0;
 
-  // Interfaces
-  // test if the block corresponds to any parameter in the problem except for 3D
-  // points
+  // 接口
+  // 测试块是否对应于问题中的任何参数（不包括 3D 点）
   bool HasBlock(const double* params) const;
-  // test if the block corresponds to any parameter in the pose_blocks
+  // 测试块是否对应于姿态块中的任何参数
   bool HasPoseBlock(const double* params) const;
-  // test if the estimator is constructed with a COLMAP reconstruction
+  // 测试估计器是否使用 COLMAP 重建构造
   bool HasReconstruction() const;
-  // test if the pose is inside the problem as non-constant variables
+  // 测试姿态是否作为非常量变量在问题中
   bool HasPose(image_t image_id) const;
 
-  // pose parameters
+  // 姿态参数
   Eigen::MatrixXd GetPoseCovariance() const;
   Eigen::MatrixXd GetPoseCovariance(image_t image_id) const;
   Eigen::MatrixXd GetPoseCovariance(
@@ -91,20 +59,20 @@ class BundleAdjustmentCovarianceEstimatorBase {
   Eigen::MatrixXd GetPoseCovariance(double* parameter_block1,
                                     double* parameter_block2) const;
 
-  // all parameters (except for 3D points)
+  // 所有参数（不包括 3D 点）
   Eigen::MatrixXd GetCovariance(double* parameter_block) const;
   Eigen::MatrixXd GetCovariance(
       const std::vector<double*>& parameter_blocks) const;
   Eigen::MatrixXd GetCovariance(double* parameter_block1,
                                 double* parameter_block2) const;
 
-  // test if either ``ComputeFull()`` or ``Compute()`` has been called
+  // 测试是否调用过 ``ComputeFull()`` 或 ``Compute()``
   bool HasValidPoseCovariance() const;
-  // test if ``ComputeFull()`` has been called
+  // 测试是否调用过 ``ComputeFull()``
   bool HasValidFullCovariance() const;
 
  protected:
-  // indexing the covariance matrix
+  // 索引协方差矩阵
   virtual double GetCovarianceByIndex(int row, int col) const;
   virtual Eigen::MatrixXd GetCovarianceBlockOperation(int row_start,
                                                       int col_start,
@@ -117,7 +85,7 @@ class BundleAdjustmentCovarianceEstimatorBase {
       int row_block_size,
       int col_block_size) const;
 
-  // blocks parsed from reconstruction (initialized at construction)
+  // 从重建中解析的块（在构造时初始化）
   std::vector<const double*> pose_blocks_;
   int num_params_poses_ = 0;
   std::vector<const double*> other_variables_blocks_;
@@ -125,8 +93,8 @@ class BundleAdjustmentCovarianceEstimatorBase {
   std::vector<const double*> point_blocks_;
   int num_params_points_ = 0;
 
-  // get the starting index of the parameter block in the matrix
-  // orders: [pose_blocks, other_variables_blocks, point_blocks]
+  // 获取矩阵中参数块的起始索引
+  // 顺序：[pose_blocks, other_variables_blocks, point_blocks]
   std::map<const double*, int> map_block_to_index_;
 
   int GetBlockIndex(const double* params) const;
@@ -134,20 +102,20 @@ class BundleAdjustmentCovarianceEstimatorBase {
   int GetPoseIndex(image_t image_id) const;
   int GetPoseTangentSize(image_t image_id) const;
 
-  // covariance for all parameters (except for 3D points)
+  // 所有参数（不包括 3D 点）的协方差
   Eigen::MatrixXd cov_variables_;
 
-  // covariance for pose parameters
+  // 姿态参数的协方差
   Eigen::MatrixXd cov_poses_;
 
-  // ceres problem
+  // ceres 问题
   ceres::Problem* problem_;
 
-  // reconstruction
+  // 重建
   Reconstruction* reconstruction_ = nullptr;
 
  private:
-  // set up parameter blocks
+  // 设置参数块
   void SetUpOtherVariablesBlocks();
 };
 
@@ -189,14 +157,14 @@ class BundleAdjustmentCovarianceEstimator
   bool ComputeFull() override;
   bool Compute() override;
 
-  // factorization
+  // 分解
   bool FactorizeFull();
   bool Factorize();
   bool HasValidFullFactorization() const;
   bool HasValidPoseFactorization() const;
 
  private:
-  // indexing the covariance matrix
+  // 索引协方差矩阵
   double GetCovarianceByIndex(int row, int col) const override;
   Eigen::MatrixXd GetCovarianceBlockOperation(
       int row_start,
@@ -210,35 +178,31 @@ class BundleAdjustmentCovarianceEstimator
       int row_block_size,
       int col_block_size) const override;
 
-  // The Schur complement for all parameters (except for 3D points) after Schur
-  // elimination
+  // 通过舒尔消去后所有参数（不包括 3D 点）的舒尔补
   Eigen::SparseMatrix<double> S_matrix_;
 
-  // The damping factor to avoid rank deficiency
+  // 为避免秩亏的阻尼因子
   const double lambda_ = 1e-8;
 
-  // Compute the Schur complement for poses and other variables by eliminating
-  // 3D points
+  // 通过消除 3D 点计算姿态和其他变量的舒尔补
   void ComputeSchurComplement();
   bool HasValidSchurComplement() const;
 
-  // The inverse of L matrix after Cholesky factorization
+  // Cholesky 分解后的 L 矩阵的逆
   Eigen::MatrixXd L_matrix_variables_inv_;
   Eigen::MatrixXd L_matrix_poses_inv_;
 };
 
-// The covariance for each image is in the order [R, t] with both of them
-// potentially on manifold (R is always at least parameterized with
-// ceres::QuaternionManifold on Lie Algebra). As a result, the covariance is
-// only computed on the non-constant part for each variable. If the full parts
-// of both the rotation and translation are in the problem, the covariance
-// matrix will be 6x6.
+// 每个图像的协方差顺序为 [R, t]，两者可能都在流形上
+// （R 至少总是用 ceres::QuaternionManifold 在 Lie 代数上参数化）。
+// 因此，协方差仅在每个变量的非常量部分上计算。
+// 如果旋转和平移的完整部分都在问题中，协方差矩阵将为 6x6。
 bool EstimatePoseCovarianceCeresBackend(
     ceres::Problem* problem,
     Reconstruction* reconstruction,
     std::map<image_t, Eigen::MatrixXd>& image_id_to_covar);
 
-// Similar to the convention above for ``EstimatePoseCovarianceCeresBackend``.
+// 与 ``EstimatePoseCovarianceCeresBackend`` 的约定类似。
 bool EstimatePoseCovariance(
     ceres::Problem* problem,
     Reconstruction* reconstruction,
