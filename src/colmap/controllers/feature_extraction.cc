@@ -43,6 +43,7 @@
 namespace colmap {
 namespace {
 
+// 如果图像尺寸与相机尺寸不一致，对关键点进行缩放
 void ScaleKeypoints(const Bitmap& bitmap,
                     const Camera& camera,
                     FeatureKeypoints* keypoints) {
@@ -56,6 +57,7 @@ void ScaleKeypoints(const Bitmap& bitmap,
   }
 }
 
+// 根据掩码移除不需要的关键点
 void MaskKeypoints(const Bitmap& mask,
                    FeatureKeypoints* keypoints,
                    FeatureDescriptors* descriptors) {
@@ -96,6 +98,8 @@ struct ImageData {
   FeatureKeypoints keypoints;
   FeatureDescriptors descriptors;
 };
+
+//功能：调整图像尺寸以适应特征提取器的最大尺寸限制。原理：通过按比例缩放图像，减少计算负担，同时保留图像内容
 
 class ImageResizerThread : public Thread {
  public:
@@ -146,6 +150,11 @@ class ImageResizerThread : public Thread {
   JobQueue<ImageData>* output_queue_;
 };
 
+/*功能：执行 SIFT 特征提取，包括关键点检测和特征描述符生成。
+原理：
+读取图像数据并调用 SIFT 提取器。
+可选地使用 GPU 提高提取效率（如果启用了 GPU 支持）。
+对提取结果进行缩放和掩码过滤。*/
 class SiftFeatureExtractorThread : public Thread {
  public:
   SiftFeatureExtractorThread(const SiftExtractionOptions& sift_options,
@@ -232,6 +241,10 @@ class SiftFeatureExtractorThread : public Thread {
   JobQueue<ImageData>* output_queue_;
 };
 
+//功能：将提取的特征保存到数据库中
+//遍历队列中的每张图像及其特征
+//保存图像元数据、关键点和描述符到数据库
+//如果图像具有 GPS 数据，则一并保存位置信息
 class FeatureWriterThread : public Thread {
  public:
   FeatureWriterThread(size_t num_images,
@@ -316,6 +329,7 @@ class FeatureWriterThread : public Thread {
 };
 
 // Feature extraction class to extract features for all images in a directory.
+//功能：协调整个特征提取流程，包括图像读取、尺寸调整、特征提取和结果保存
 class FeatureExtractorController : public Thread {
  public:
   FeatureExtractorController(const ImageReaderOptions& reader_options,
@@ -497,6 +511,7 @@ class FeatureExtractorController : public Thread {
 
 // Import features from text files. Each image must have a corresponding text
 // file with the same name and an additional ".txt" suffix.
+//功能：从外部文本文件导入特征
 class FeatureImporterController : public Thread {
  public:
   FeatureImporterController(const ImageReaderOptions& reader_options,
