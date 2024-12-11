@@ -36,8 +36,8 @@
 namespace colmap {
 
 bool ImageReaderOptions::Check() const {
-  CHECK_OPTION_GT(default_focal_length_factor, 0.0);
-  CHECK_OPTION(ExistsCameraModelWithName(camera_model));
+  CHECK_OPTION_GT(default_focal_length_factor, 0.0);// 默认焦距因子必须大于0
+  CHECK_OPTION(ExistsCameraModelWithName(camera_model));// 确认相机模型存在
   const CameraModelId model_id = CameraModelNameToId(camera_model);
   if (!camera_params.empty()) {
     CHECK_OPTION(
@@ -46,6 +46,7 @@ bool ImageReaderOptions::Check() const {
   return true;
 }
 
+//初始化 ImageReader 对象
 ImageReader::ImageReader(const ImageReaderOptions& options, Database* database)
     : options_(options), database_(database), image_index_(0) {
   THROW_CHECK(options_.Check());
@@ -86,6 +87,24 @@ ImageReader::ImageReader(const ImageReaderOptions& options, Database* database)
   }
 }
 
+//功能：读取图像文件，并提取其相机参数和位置信息
+/*执行流程：
+1图像名称设置：
+使用相对路径作为图像名称，便于后续处理。
+2检查图像是否已存在：
+如果图像及其特征已在数据库中，直接返回已存在状态。
+3读取图像文件：
+如果图像文件读取失败，返回错误状态。
+4读取掩码文件（如果指定）：
+如果掩码文件读取失败，返回错误状态。
+5检查图像维度一致性：
+验证当前图像的分辨率是否与已有相机模型一致。
+6相机模型和焦距提取：
+如果未提供相机参数，从图像元数据中提取相机模型和焦距。
+7提取 GPS 信息（可选）：
+如果图像包含地理位置信息，提取并存储到 PosePrior 中。
+8返回成功状态。
+*/
 ImageReader::Status ImageReader::Next(Camera* camera,
                                       Image* image,
                                       PosePrior* pose_prior,
