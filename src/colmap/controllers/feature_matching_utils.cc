@@ -40,6 +40,7 @@
 
 namespace colmap {
 
+//初始化特征匹配工作线程
 FeatureMatcherWorker::FeatureMatcherWorker(
     const SiftMatchingOptions& matching_options,
     const TwoViewGeometryOptions& geometry_options,
@@ -60,6 +61,7 @@ FeatureMatcherWorker::FeatureMatcherWorker(
   }
 }
 
+//设置匹配点数的上限。用途：控制计算开销，避免处理过多特征匹配
 void FeatureMatcherWorker::SetMaxNumMatches(int max_num_matches) {
   matching_options_.max_num_matches = max_num_matches;
 }
@@ -133,7 +135,7 @@ void FeatureMatcherWorker::Run() {
 }
 
 namespace {
-
+//功能：用于验证特征匹配结果的工作线程
 class VerifierWorker : public Thread {
  public:
   typedef FeatureMatcherData Input;
@@ -151,6 +153,13 @@ class VerifierWorker : public Thread {
   }
 
  protected:
+//实现几何验证的逻辑
+/*执行流程：
+1.从输入队列获取任务。
+2.如果匹配点数量低于最小要求，直接跳过。
+3.获取图像的相机参数和关键点。
+4.调用 EstimateTwoViewGeometry，基于几何约束验证匹配。
+5.将结果推送到输出队列。*/
   void Run() override {
     while (true) {
       if (IsStopped()) {
