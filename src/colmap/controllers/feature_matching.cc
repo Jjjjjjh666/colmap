@@ -46,6 +46,7 @@ void PrintElapsedTime(const Timer& timer) {
   LOG(INFO) << StringPrintf("in %.3fs", timer.ElapsedSeconds());
 }
 
+//功能：实现特征匹配的主要线程，支持不同的图像对生成方式（如穷尽匹配、空间匹配等）
 class FeatureMatcherThread : public Thread {
  public:
   using PairGeneratorFactory = std::function<std::unique_ptr<PairGenerator>()>;
@@ -64,6 +65,7 @@ class FeatureMatcherThread : public Thread {
   }
 
  private:
+//实现特征匹配的主逻辑
   void Run() override {
     PrintHeading1("Feature matching");
     Timer run_timer;
@@ -100,6 +102,7 @@ class FeatureMatcherThread : public Thread {
 
 }  // namespace
 
+//功能：穷尽匹配，生成所有可能的图像对,适用于图像对较少的场景
 std::unique_ptr<Thread> CreateExhaustiveFeatureMatcher(
     const ExhaustiveMatchingOptions& options,
     const SiftMatchingOptions& matching_options,
@@ -114,6 +117,7 @@ std::unique_ptr<Thread> CreateExhaustiveFeatureMatcher(
       });
 }
 
+//基于词袋模型（Vocabulary Tree）的匹配
 std::unique_ptr<Thread> CreateVocabTreeFeatureMatcher(
     const VocabTreeMatchingOptions& options,
     const SiftMatchingOptions& matching_options,
@@ -128,6 +132,7 @@ std::unique_ptr<Thread> CreateVocabTreeFeatureMatcher(
       });
 }
 
+//适用于视频序列的匹配,根据时间戳或帧序号生成相邻帧对
 std::unique_ptr<Thread> CreateSequentialFeatureMatcher(
     const SequentialMatchingOptions& options,
     const SiftMatchingOptions& matching_options,
@@ -142,6 +147,8 @@ std::unique_ptr<Thread> CreateSequentialFeatureMatcher(
       });
 }
 
+//功能：基于图像的空间位置信息（如 GPS 数据）生成图像对
+//原理：利用地理位置和邻近距离进行匹配,适合含有位置信息的场景。
 std::unique_ptr<Thread> CreateSpatialFeatureMatcher(
     const SpatialMatchingOptions& options,
     const SiftMatchingOptions& matching_options,
@@ -156,6 +163,7 @@ std::unique_ptr<Thread> CreateSpatialFeatureMatcher(
       });
 }
 
+//从外部指定的图像对和匹配数据导入匹配结果
 std::unique_ptr<Thread> CreateTransitiveFeatureMatcher(
     const TransitiveMatchingOptions& options,
     const SiftMatchingOptions& matching_options,
